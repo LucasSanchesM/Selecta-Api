@@ -1,9 +1,8 @@
-package com.unisal.selectaapi.company;
+package com.unisal.selectaapi.company.controler;
 
 import java.util.UUID;
 
 import com.unisal.selectaapi.company.dto.*;
-import com.unisal.selectaapi.company.entity.CompanyMember;
 import com.unisal.selectaapi.company.service.CompanyMemberService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 
-/** Permissões são checadas no service (proprietário / ADMIN / RECRUTADOR). */
 @RestController
 @RequestMapping("/empresa/equipe")
 public class CompanyMemberControler {
@@ -46,15 +44,15 @@ public class CompanyMemberControler {
 
     @PatchMapping("/{memberId}")
     public ResponseEntity<CompanyMemberDto> atualizar(@AuthenticationPrincipal Jwt jwt,
-                                                        @PathVariable("memberId") UUID memberId,
+                                                        @PathVariable("memberId") UUID alvoUserId,
                                                         @Valid @RequestBody UpdateCompanyMemberDto dto) {
-        return ResponseEntity.ok(companyMemberService.updateInfos(memberId, dto, userId(jwt)));
+        return ResponseEntity.ok(companyMemberService.updateInfos(alvoUserId, dto, userId(jwt)));
     }
 
     @DeleteMapping("/{memberId}")
     public ResponseEntity<Void> remover(@AuthenticationPrincipal Jwt jwt,
-                                        @PathVariable("memberId") UUID memberId) {
-        companyMemberService.deleteMemberCompany(memberId, userId(jwt));
+                                        @PathVariable("memberId") UUID alvoUserId) {
+        companyMemberService.deleteMemberCompany(alvoUserId, userId(jwt));
         return ResponseEntity.noContent().build();
     }
 

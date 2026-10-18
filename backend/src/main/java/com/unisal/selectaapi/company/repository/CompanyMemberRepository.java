@@ -27,9 +27,9 @@ public interface CompanyMemberRepository extends JpaRepository<CompanyMember, UU
     //Pega funcionarios
     List<CompanyMember> findAllByCompany_User_Id(UUID companyUserId);
 
-    List<User> findAllUsersByCompanyId(UUID companyId);
+    @Query("SELECT m.user FROM CompanyMember m WHERE m.company.id = :companyId")
+    List<User> findAllUsersByCompanyId(@Param("companyId") UUID companyId);
 
     boolean existsByUserId(UUID userId);
 
-    UUID userId(UUID userId);
 }

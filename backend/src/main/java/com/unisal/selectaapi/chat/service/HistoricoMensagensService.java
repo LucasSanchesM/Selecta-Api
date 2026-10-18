@@ -80,24 +80,22 @@ public class HistoricoMensagensService {
         return UserRole.CANDIDATE.name().equals(dados.user().getRole());
     }
 
+    @Transactional(readOnly = true)
     public List<HistoricoMessageResponseDto> pegarListaDeMensagens(UUID userId, UUID candidaturaId){
-
         var dados = pegarEValidarCandidaturaEUser(userId, candidaturaId);
-
         var lista = historicoMensagensRepository.findByCandidaturaOrderByCreatedTimeStampAsc(dados.candidatura());
         boolean souCandidato = isCandidato(dados);
+        UUID candidatoUserId = dados.candidatura().getCandidato().getUser().getId();
 
-        return lista.stream()
-                .map(registro -> {
-                    UUID autorId = registro.getUser().getId();
-                    // "Minha" = enviada pelo meu lado da conversa. Para a empresa, mensagens
-                    // de qualquer colega da equipe também aparecem como do lado da empresa.
-                    boolean doMeuLado = souCandidato ? autorId.equals(userId) : !autorId.equals(dados.candidatura().getCandidato().getId());
-                    return new HistoricoMessageResponseDto(
-                    registro.getUser().getName(),
-                    registro.getMensagem(), doMeuLado,
+        return lista.stream().map(registro -> {
+            var autor = registro.getUser();
+            boolean doMeuLado = souCandidato
+                    ? autor != null && autor.getId().equals(userId)
+                    : autor == null || !autor.getId().equals(candidatoUserId);
+            String nome = autor != null ? autor.getName() : "Usuário removido";
+            return new HistoricoMessageResponseDto(nome, registro.getMensagem(), doMeuLado,
                     registro.getCreatedTimeStamp(), registro.getLida());
-                }).toList();
+        }).toList();
     }
 
     @Transactional
@@ -115,61 +113,37 @@ public class HistoricoMensagensService {
         registro.setUser(dadosMensagem.user());
         registro.setLida(false);
         var registroSaved = historicoMensagensRepository.save(registro);
-        //var destinatario = UserRole.CANDIDATE.name().equals(dadosMensagem.user().getRole()) ?
-        //        dadosMensagem.candidatura().getVaga().getEmpresa().getUser().getId():
-        //        dadosMensagem.candidatura().getCandidato().getUser().getId();
-        //simpMessagingTemplate.convertAndSendToUser(destinatario.toString(),
-          //                                         "/queue/mensagens",
-            //                                        new HistoricoMessageResponseDto(registroSaved.getUser().getName(), registroSaved.getMensagem(), false, registroSaved.getCreatedTimeStamp(), registroSaved.getLida())
-        //);
 
-        var dtoEnviadoParaSiMesmo = new HistoricoMessageResponseDto(registroSaved.getUser().getName(),
-                                                                    registroSaved.getMensagem(),
-                                                    false,
-                                                                    registroSaved.getCreatedTimeStamp(),
-                                                                    registroSaved.getLida());
+        var candidatura = dadosMensagem.candidatura();
+        var empresaUsers = getAllUsuariosDaEmpresa(candidatura);
+        UUID candidatoUserId = candidatura.getCandidato().getUser().getId();
 
-        var dtoEnviadoParaOutros = new HistoricoMessageResponseDto(registroSaved.getUser().getName(),
-                registroSaved.getMensagem(),
-                true,
-                registroSaved.getCreatedTimeStamp(),
-                registroSaved.getLida());
+        var nome = registroSaved.getUser().getName();
+        var dtoMesmoLado = new HistoricoMessageResponseDto(nome, registroSaved.getMensagem(), true,
+                registroSaved.getCreatedTimeStamp(), registroSaved.getLida());
+        var dtoOutroLado = new HistoricoMessageResponseDto(nome, registroSaved.getMensagem(), false,
+                registroSaved.getCreatedTimeStamp(), registroSaved.getLida());
 
-        if(souCandidato){
-            //Enviar para todos os usuarios da empresa online
-            getAllUsuariosDaEmpresa(dadosMensagem.candidatura()).forEach(usuario -> {
-                simpMessagingTemplate.convertAndSendToUser(usuario.getId().toString(),
-                                                    "/queue/mensagens",
-                                                            dtoEnviadoParaOutros
-                                                    );
-            });
-        }else{
-            //Envia pro candidato e para outros usuarios da empresa online
-            var usersToSend = getAllUsuariosDaEmpresa(dadosMensagem.candidatura()).stream().filter(user -> !user.getId().equals(userId)).toList();
-            usersToSend.forEach(usuario ->
-                    simpMessagingTemplate.convertAndSendToUser(usuario.getId().toString(),
-                                                    "/queue/mensagens",
-                                                                dtoEnviadoParaSiMesmo
-                                                    )
-            );
-            simpMessagingTemplate.convertAndSendToUser(dadosMensagem.candidatura().getCandidato().getUser().getId().toString(),
-                                                        "/queue/mensagens",
-                                                        dtoEnviadoParaOutros);
-
+        if (souCandidato) {
+            empresaUsers.forEach(u -> enviarSocket(u.getId(), dtoOutroLado));
+        } else {
+            empresaUsers.stream()
+                    .filter(u -> !u.getId().equals(userId))
+                    .forEach(u -> enviarSocket(u.getId(), dtoMesmoLado));
+            enviarSocket(candidatoUserId, dtoOutroLado);
         }
 
-        var destinatario = UserRole.CANDIDATE.name().equals(dadosMensagem.user().getRole()) ? dadosMensagem.candidatura().getVaga().getEmpresa().getUser().getId()
-                                :dadosMensagem.candidatura().getCandidato().getUser().getId();
+        List<UUID> destinatarios = souCandidato
+                ? empresaUsers.stream().map(User::getId).toList()
+                : List.of(candidatoUserId);
 
-        if(historicoMensagensRepository.quantidadeDeMensagensNaoLidasPeloIdDaCandidatura(registroSaved.getCandidatura().getId(), registroSaved.getUser().getId()) <= 1){
-            notificacaoService.publicarNotificacao(destinatario, new PublishNotificacaoDto("Mensagens não lidas",
-                                                                                  "Há mensagens nao lidas",
-                                                                                            NotificacoesRole.CHAT,
-                                                                                            registro.getIdMensagem().toString()
-                    ));
+        if (historicoMensagensRepository.quantidadeDeMensagensNaoLidasPeloIdDaCandidatura(candidaturaId, userId) <= 1) {
+            destinatarios.forEach(id -> notificacaoService.publicarNotificacao(id,
+                    new PublishNotificacaoDto("Mensagens não lidas", "Há mensagens não lidas",
+                            NotificacoesRole.CHAT, candidaturaId.toString())));
         }
 
-        return new HistoricoMessageResponseDto(registroSaved.getUser().getName(), registroSaved.getMensagem(), true, registroSaved.getCreatedTimeStamp(), registroSaved.getLida());
+        return dtoMesmoLado;
     }
 
     @Transactional
@@ -199,5 +173,7 @@ public class HistoricoMensagensService {
         return listaDeUsuarios;
     }
 
-
+    private void enviarSocket(UUID destinatarioId, HistoricoMessageResponseDto dto) {
+        simpMessagingTemplate.convertAndSendToUser(destinatarioId.toString(), "/queue/mensagens", dto);
+    }
 }
