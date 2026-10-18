@@ -14,9 +14,35 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMqConfig {
 
+    public static final String EXCHANGE = "email.exchange";
+    public static final String SECURITY_QUEUE = "email.seguranca";
+    public static final String SECURITY_ROUTING_KEY = "email.seguranca.key";
+
     @Bean
     public DirectExchange exchange() {
-        return new DirectExchange("email.exchange");
+        return new DirectExchange(EXCHANGE);
+    }
+
+    @Bean
+    public Queue securityQueue() {
+        return new Queue(SECURITY_QUEUE, true, false, false,
+                Map.of("x-dead-letter-routing-key", "email.seguranca.dlq.key",
+                        "x-dead-letter-exchange", EXCHANGE));
+    }
+
+    @Bean
+    public Queue securityQueueDlq() {
+        return new Queue("email.seguranca.dlq", true, false, false, null);
+    }
+
+    @Bean
+    public Binding securityBinding() {
+        return BindingBuilder.bind(securityQueue()).to(exchange()).with(SECURITY_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding securityBindingDlq() {
+        return BindingBuilder.bind(securityQueueDlq()).to(exchange()).with("email.seguranca.dlq.key");
     }
 
     @Bean

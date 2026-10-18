@@ -56,6 +56,9 @@ public class CandidateProfile {
     @Column(name = "resume_key", length = 512)
     private String resumeKey;
 
+    @Column(name = "resume_text", columnDefinition = "TEXT")
+    private String resumeText;
+
     private String institution;
     private String course;
     private Integer currentSemester;
@@ -198,6 +201,14 @@ public class CandidateProfile {
 
     public void setResumeKey(String resumeKey) {
         this.resumeKey = resumeKey;
+    }
+
+    public String getResumeText() {
+        return resumeText;
+    }
+
+    public void setResumeText(String resumeText) {
+        this.resumeText = resumeText;
     }
 
     public String getInstitution() {

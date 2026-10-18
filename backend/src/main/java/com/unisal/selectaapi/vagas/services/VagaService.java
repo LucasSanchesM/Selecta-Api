@@ -3,8 +3,10 @@ package com.unisal.selectaapi.vagas.services;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,9 @@ import com.unisal.selectaapi.company.repository.CompanyProfileRepository;
 
 import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.geo.GeoCodingService;
+import com.unisal.selectaapi.recomendacao.service.RecomendacaoService;
+import com.unisal.selectaapi.vagas.event.VagaRemovidaEvent;
+import com.unisal.selectaapi.vagas.event.VagaSalvaEvent;
 import com.unisal.selectaapi.vagas.repository.VagaRepository;
 import com.unisal.selectaapi.vagas.VagaRole;
 import com.unisal.selectaapi.vagas.VagaSpecification;
@@ -34,12 +39,17 @@ public class VagaService {
     private final VagaRepository vagaRepository;
     private final CompanyProfileRepository companyProfileRepository;
     private final GeoCodingService geoCodingService;
+    private final RecomendacaoService recomendacaoService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public VagaService(VagaRepository vagaRepository, CompanyProfileRepository companyProfileRepository,
-            GeoCodingService geoCodingService) {
+            GeoCodingService geoCodingService, RecomendacaoService recomendacaoService,
+            ApplicationEventPublisher eventPublisher) {
         this.vagaRepository = vagaRepository;
         this.companyProfileRepository = companyProfileRepository;
         this.geoCodingService = geoCodingService;
+        this.recomendacaoService = recomendacaoService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -70,6 +80,7 @@ public class VagaService {
         configurarEtapas(vaga, dto.etapas());
 
         var savedVaga = vagaRepository.save(vaga);
+        eventPublisher.publishEvent(new VagaSalvaEvent(savedVaga.getId()));
 
         return mapToResponse(savedVaga);
     }
@@ -85,6 +96,7 @@ public class VagaService {
             String estado,
             Boolean ativa,
             UUID companyProfileId,
+            UUID usuarioId,
             int page,
             int size
     ) {
@@ -93,13 +105,26 @@ public class VagaService {
                 salarioMin, salarioMax, cidade, estado, ativa, companyProfileId
         );
 
-        var pageable = PageRequest.of(
-                Math.max(page, 0),
-                Math.min(Math.max(size, 1), 50),
-                Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+        int pagina = Math.max(page, 0);
+        int tamanho = Math.min(Math.max(size, 1), 50);
+        var maisRecentes = Sort.by(Sort.Direction.DESC, "createdAt");
 
-        return vagaRepository.findAll(spec, pageable)
+        // Listagem por empresa é a visão do recrutador: fica sempre em ordem cronológica.
+        var vetorCandidato = companyProfileId == null
+                ? recomendacaoService.vetorDoCandidato(usuarioId)
+                : Optional.<float[]>empty();
+
+        if (vetorCandidato.isPresent()) {
+            var filtradas = vagaRepository.findAll(spec, maisRecentes);
+            return recomendacaoService.ordenarPorRelevancia(vetorCandidato.get(), filtradas)
+                    .stream()
+                    .skip((long) pagina * tamanho)
+                    .limit(tamanho)
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        return vagaRepository.findAll(spec, PageRequest.of(pagina, tamanho, maisRecentes))
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -181,6 +206,7 @@ public class VagaService {
             vaga.setEstado(enderecoNovo.estado());
         }
         var updatedVaga = vagaRepository.save(vaga);
+        eventPublisher.publishEvent(new VagaSalvaEvent(updatedVaga.getId()));
 
         return mapToResponse(updatedVaga);
     }
@@ -195,6 +221,7 @@ public class VagaService {
                 ));
 
         vagaRepository.delete(vaga);
+        eventPublisher.publishEvent(new VagaRemovidaEvent(id));
     }
 
     public List<VagaResponse> pegarVagasPorRaio(Double latitude, Double longitude, Double raioKm){    
@@ -203,7 +230,7 @@ public class VagaService {
     }
 
 
-    private VagaResponse mapToResponse(Vaga vaga) {
+    public VagaResponse mapToResponse(Vaga vaga) {
 
         CompanyProfile empresa = vaga.getEmpresa();
         List<VagaEtapa> etapas = vaga.getEtapas();

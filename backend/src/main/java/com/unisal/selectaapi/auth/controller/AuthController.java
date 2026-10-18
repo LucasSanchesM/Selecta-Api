@@ -1,25 +1,30 @@
 package com.unisal.selectaapi.auth.controller;
 
 import java.util.Map;
+import java.util.UUID;
 
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import com.unisal.selectaapi.auth.dtos.CompanyRegistrationDto;
 import com.unisal.selectaapi.auth.dtos.LoginRequestDto;
 import com.unisal.selectaapi.auth.dtos.LoginResponseDto;
+import com.unisal.selectaapi.auth.dtos.RefreshTokenRequestDto;
 import com.unisal.selectaapi.auth.dtos.ResendCodeDto;
 import com.unisal.selectaapi.auth.dtos.VerifyEmailDto;
 import com.unisal.selectaapi.auth.service.AuthService;
+import com.unisal.selectaapi.auth.service.ClientInfo;
 import com.unisal.selectaapi.auth.service.CompanyRegistrationService;
+import com.unisal.selectaapi.auth.service.SessionService;
 import com.unisal.selectaapi.user.dto.UserResponseDto;
 import com.unisal.selectaapi.user.UserService;
 
@@ -30,12 +35,14 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
     private final CompanyRegistrationService companyRegistrationService;
+    private final SessionService sessionService;
 
     public AuthController(AuthService authService, UserService userService,
-            CompanyRegistrationService companyRegistrationService) {
+            CompanyRegistrationService companyRegistrationService, SessionService sessionService) {
         this.authService = authService;
         this.userService = userService;
         this.companyRegistrationService = companyRegistrationService;
+        this.sessionService = sessionService;
     }
 
     @PostMapping("/register-company")
@@ -43,20 +50,26 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(companyRegistrationService.register(dto));
     }
 
+    /**
+     * Login com e-mail e senha. Se a conta tiver verificação em duas etapas e o
+     * dispositivo for novo, devolve `twoFactorRequired: true` com o `challengeId`.
+     */
     @PostMapping()
-    public ResponseEntity<LoginResponseDto> logarUser(@Valid @RequestBody LoginRequestDto dto) {
-        var token = authService.loginUser(dto);
+    public ResponseEntity<LoginResponseDto> logarUser(@Valid @RequestBody LoginRequestDto dto,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(authService.loginUser(dto, ClientInfo.from(request)));
+    }
 
-        ResponseCookie cookie = ResponseCookie.from("token", token.token())
-                .httpOnly(false)
-                .path("/")
-                .maxAge(token.expiresIn() != null ? token.expiresIn() : 86400)
-                .sameSite("Lax")
-                .build();
+    @PostMapping("/refresh-token")
+    public ResponseEntity<LoginResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto dto) {
+        return ResponseEntity.ok(sessionService.refresh(dto.refreshToken()));
+    }
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(token);
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal Jwt jwt) {
+        String sid = jwt.getClaimAsString("sid");
+        sessionService.revokeCurrent(sid != null ? UUID.fromString(sid) : null);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/verify-email")

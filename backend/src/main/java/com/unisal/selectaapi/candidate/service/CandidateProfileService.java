@@ -207,6 +207,8 @@ public class CandidateProfileService {
         String previousKey = profile.getResumeKey();
         profile.setResumeKey(uploaded.key());
         profile.setResumeUrl(uploaded.url());
+        profile.setResumeText(ResumeTextExtractor.extrair(content));
+
 
         try {
             CandidateProfile saved = candidateProfileRepository.saveAndFlush(profile);

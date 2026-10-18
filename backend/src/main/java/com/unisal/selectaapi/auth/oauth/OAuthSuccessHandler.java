@@ -1,6 +1,7 @@
 package com.unisal.selectaapi.auth.oauth;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -15,7 +16,9 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import com.unisal.selectaapi.auth.service.AuthService;
+import com.unisal.selectaapi.auth.service.ClientInfo;
 import com.unisal.selectaapi.auth.service.OAuthProviderService;
+import com.unisal.selectaapi.auth.service.SessionService;
 import com.unisal.selectaapi.exception.BusinessException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,15 +60,22 @@ public class OAuthSuccessHandler implements AuthenticationSuccessHandler {
         try {
 
             var user = providerService.authenticateCandidate(oidcUser);
-            var token = authService.issueToken(user);
-            ResponseCookie cookie = ResponseCookie.from("token", token.token())
+            var token = authService.issueToken(user, ClientInfo.from(request));
+            ResponseCookie cookie = ResponseCookie.from("token", token.tokenJwt())
                     .httpOnly(false)
                     .path("/")
-                    .maxAge(token.expiresIn())
+                    .maxAge(token.expiresInJwt())
+                    .sameSite("Lax")
+                    .build();
+            ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", token.refreshToken())
+                    .httpOnly(false)
+                    .path("/")
+                    .maxAge(Duration.ofDays(SessionService.REFRESH_TOKEN_DAYS))
                     .sameSite("Lax")
                     .build();
 
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
             
             invalidateSession(request);
             response.sendRedirect(frontendUrl + "/dashboard");

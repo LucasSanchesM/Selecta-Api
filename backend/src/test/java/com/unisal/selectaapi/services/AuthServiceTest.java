@@ -27,7 +27,11 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 
 import com.unisal.selectaapi.auth.dtos.LoginRequestDto;
+import com.unisal.selectaapi.auth.dtos.LoginResponseDto;
 import com.unisal.selectaapi.auth.service.AuthService;
+import com.unisal.selectaapi.auth.service.ClientInfo;
+import com.unisal.selectaapi.auth.service.SessionService;
+import com.unisal.selectaapi.auth.service.TwoFactorService;
 import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.user.UserRepository;
 import com.unisal.selectaapi.user.UserRole;
@@ -47,6 +51,12 @@ public class AuthServiceTest {
     
     @Mock
     private JwtEncoder jwtEncoder;
+
+    @Mock
+    private SessionService sessionService;
+
+    @Mock
+    private TwoFactorService twoFactorService;
 
     @Captor
     private ArgumentCaptor<String> emailArgumentCaptor;
@@ -75,13 +85,9 @@ public class AuthServiceTest {
             //===== ARRANGE =======
             doReturn(Optional.of(user)).when(userRepository).findByEmail(input.email());
             doReturn(true).when(passwordEncoder).matches(input.password(), user.getPasswordHash());
-            var jwtFake = Jwt.withTokenValue("token-fake")
-                                .header("alg", "none")
-                                .claim("sub", "1")
-                                .issuedAt(Instant.now())
-                                .expiresAt(Instant.now().plusSeconds(900))
-                                .build();
-            doReturn(jwtFake).when(jwtEncoder).encode(any(JwtEncoderParameters.class));
+            doReturn(false).when(twoFactorService).requiresChallenge(any(User.class), any(ClientInfo.class));
+            doReturn(LoginResponseDto.tokens("token-fake", 900L, user.getRole(), "refresh-fake"))
+                    .when(sessionService).startSession(any(User.class), any(ClientInfo.class));
 
             //===== ACT =======
             var response = authService.loginUser(input);
@@ -98,7 +104,24 @@ public class AuthServiceTest {
             assertEquals(input.email(), emailUsedToSearch);
 
             //verifica se token seria emitido corretamente
-            assertEquals("token-fake", response.token());
+            assertEquals("token-fake", response.tokenJwt());
+            assertEquals("refresh-fake", response.refreshToken());
+        }
+
+        @Test
+        @DisplayName("should require two-factor on an untrusted device")
+        void shouldRequireTwoFactorOnUntrustedDevice(){
+            doReturn(Optional.of(user)).when(userRepository).findByEmail(input.email());
+            doReturn(true).when(passwordEncoder).matches(input.password(), user.getPasswordHash());
+            doReturn(true).when(twoFactorService).requiresChallenge(any(User.class), any(ClientInfo.class));
+            doReturn(LoginResponseDto.challenge(UUID.randomUUID().toString(), user.getRole(), "pe•••@teste.com"))
+                    .when(twoFactorService).createChallenge(any(User.class), any(ClientInfo.class));
+
+            var response = authService.loginUser(input);
+
+            assertEquals(Boolean.TRUE, response.twoFactorRequired());
+            assertEquals(null, response.tokenJwt());
+            verify(sessionService, never()).startSession(any(User.class), any(ClientInfo.class));
         }
 
         @Test

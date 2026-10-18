@@ -3,6 +3,12 @@ jwt:
     key: "classpath:app.pub"
   private:
     key: "classpath:app.key"
+    
+recomendacao:
+  embedding:
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 
 spring:
   application:
@@ -89,3 +95,13 @@ r2:
 resend:
   api:
     key: ${API_KEY}
+logging:
+  level:
+    # Se você estiver usando RestTemplate
+    org.springframework.web.client.RestTemplate: DEBUG
+    # Se você estiver usando WebClient
+    org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
+    # Se você estiver usando RestClient (Spring Boot 3.2+)
+    org.springframework.web.client.RestClient: DEBUG
+    # Opcional: Para ver o corpo (body) das requisições HTTP
+    org.apache.hc.client5.http.wire: DEBUG

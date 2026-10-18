@@ -16,6 +16,10 @@ public interface VagaRepository extends JpaRepository<Vaga, UUID>, JpaSpecificat
     @EntityGraph(attributePaths = "etapas")
     List<Vaga> findByEmpresaId(UUID companyProfileId);
 
+    @EntityGraph(attributePaths = {"etapas", "empresa"})
+    List<Vaga> findByAtivaTrue();
+
+
     //consulta banco com filtro de raio
     @Query(value = """
             SELECT *

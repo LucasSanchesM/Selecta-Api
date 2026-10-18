@@ -8,6 +8,8 @@ import java.util.UUID;
 import com.unisal.selectaapi.vagas.VagaRole;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,8 +53,10 @@ public class VagaController {
     }
 
     // LISTAR TODAS AS VAGAS COM FILTROS OPCIONAIS
+    // Candidato logado recebe as vagas ordenadas pela aderência ao perfil e currículo dele
     @GetMapping
     public ResponseEntity<List<VagaResponse>> findAllVagas(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String titulo,
             @RequestParam(required = false) VagaRole categoria,
             @RequestParam(required = false) ModalidadeVaga modalidade,
@@ -68,10 +72,21 @@ public class VagaController {
         var vagas = vagaService.findAllWithFilters(
                 titulo, categoria, modalidade,
                 salarioMin, salarioMax, cidade, estado, ativa, companyProfileId,
-                page, size
+                usuarioLogado(jwt), page, size
         );
 
         return ResponseEntity.ok(vagas);
+    }
+
+    private static UUID usuarioLogado(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
     // LISTAR VAGAS DE UMA EMPRESA ESPECÍFICA
     @GetMapping("/empresa/{companyProfileId}")
