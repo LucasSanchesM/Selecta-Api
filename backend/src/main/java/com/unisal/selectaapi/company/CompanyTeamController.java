@@ -23,9 +23,14 @@ import com.unisal.selectaapi.company.service.CompanyTeamService;
 
 import jakarta.validation.Valid;
 
-/** Permissões são checadas no service (proprietário / ADMIN / RECRUTADOR). */
+/**
+ * Permissões são checadas no service:
+ * proprietário, ADMIN ou RECRUTADOR.
+ *
+ * Caminho separado para não conflitar com CompanyMemberControler.
+ */
 @RestController
-@RequestMapping("/empresa/equipe")
+@RequestMapping("/empresa/equipe-settings")
 public class CompanyTeamController {
 
     private final CompanyTeamService teamService;
@@ -35,27 +40,39 @@ public class CompanyTeamController {
     }
 
     @GetMapping
-    public ResponseEntity<TeamResponse> listar(@AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(teamService.listar(userId(jwt)));
+    public ResponseEntity<TeamResponse> listar(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(
+                teamService.listar(userId(jwt)));
     }
 
     @PostMapping
-    public ResponseEntity<TeamMemberResponse> criar(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<TeamMemberResponse> criar(
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreateTeamMemberDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(teamService.criar(userId(jwt), dto));
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(teamService.criar(userId(jwt), dto));
     }
 
     @PatchMapping("/{memberId}")
-    public ResponseEntity<TeamMemberResponse> atualizar(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<TeamMemberResponse> atualizar(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable("memberId") UUID memberId,
             @Valid @RequestBody UpdateTeamMemberDto dto) {
-        return ResponseEntity.ok(teamService.atualizar(userId(jwt), memberId, dto));
+
+        return ResponseEntity.ok(
+                teamService.atualizar(userId(jwt), memberId, dto));
     }
 
     @DeleteMapping("/{memberId}")
-    public ResponseEntity<Void> remover(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<Void> remover(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable("memberId") UUID memberId) {
+
         teamService.remover(userId(jwt), memberId);
+
         return ResponseEntity.noContent().build();
     }
 
