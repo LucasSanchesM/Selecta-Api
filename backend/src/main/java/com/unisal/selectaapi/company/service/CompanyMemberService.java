@@ -138,7 +138,7 @@ public class CompanyMemberService {
     }
 
     @Transactional
-    public void deleteCMemberCompany(UUID userId, UUID deletador){
+    public void deleteMemberCompany(UUID userId, UUID deletador){
         var companyMember = companyMemberRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Este companyMember nao existe"));
 
