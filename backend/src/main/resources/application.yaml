@@ -4,6 +4,11 @@ jwt:
   private:
     key: "${JWT_PRIVATE_KEY}"
 
+logging:
+  level:
+    org.springframework.messaging: TRACE
+    org.springframework.web.socket: TRACE
+
 spring:
   application:
     name: selectaapi

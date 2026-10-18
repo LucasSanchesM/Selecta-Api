@@ -175,5 +175,7 @@ public class HistoricoMensagensService {
 
     private void enviarSocket(UUID destinatarioId, HistoricoMessageResponseDto dto) {
         simpMessagingTemplate.convertAndSendToUser(destinatarioId.toString(), "/queue/mensagens", dto);
+        System.out.println("Enviando mensagem WebSocket");
+        System.out.println("Destinatário UUID: " + destinatarioId);
     }
 }
