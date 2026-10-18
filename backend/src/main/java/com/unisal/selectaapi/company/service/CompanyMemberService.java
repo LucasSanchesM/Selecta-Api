@@ -12,6 +12,7 @@ import com.unisal.selectaapi.company.repository.CompanyProfileRepository;
 import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.user.UserRepository;
 import com.unisal.selectaapi.user.UserRole;
+import com.unisal.selectaapi.user.UserService;
 import com.unisal.selectaapi.user.entity.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,12 +29,14 @@ public class CompanyMemberService {
     private final UserRepository userRepository;
     private final CompanyMemberRepository companyMemberRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final UserService userService;
 
-    public CompanyMemberService(CompanyProfileRepository companyProfileRepository, UserRepository userRepository, CompanyMemberRepository companyMemberRepository, BCryptPasswordEncoder passwordEncoder) {
+    public CompanyMemberService(CompanyProfileRepository companyProfileRepository, UserRepository userRepository, CompanyMemberRepository companyMemberRepository, BCryptPasswordEncoder passwordEncoder, UserService userService) {
         this.companyProfileRepository = companyProfileRepository;
         this.userRepository = userRepository;
         this.companyMemberRepository = companyMemberRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userService = userService;
     }
 
     @Transactional(readOnly = true)
@@ -134,13 +137,36 @@ public class CompanyMemberService {
         return toDtoMember(companyMember, atualizadorEhVoce);
     }
 
+    @Transactional
+    public void deleteCMemberCompany(UUID userId, UUID deletador){
+        var companyMember = companyMemberRepository.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Este companyMember nao existe"));
+
+        verificarSeDoisUsuariosSaoDaMesmaEmpresa(userId, deletador);
+        boolean deletadorEHDono = companyProfileRepository.existsByUserId(deletador);
+        boolean deletadorEhAdmin = !deletadorEHDono && verificarSePodeGerenciar(deletador);
+
+        boolean alvoEhAdmin = CompanyMemberRole.ADMIN.equals(companyMember.getRole());
+
+        if(alvoEhAdmin && !deletadorEHDono){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Apenas o dono pode deletar administradores");
+        }
+        if(!deletadorEhAdmin && !deletadorEHDono){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Apenas administradores ou o dono podem deletar membros");
+        }
+
+        companyMemberRepository.delete(companyMember);
+        userService.deleteUser(userId);
+
+    }
+
     private void verificarSeDoisUsuariosSaoDaMesmaEmpresa(UUID userId1, UUID userId2){
         if(!pegarCompanyPeloUserId(userId1).getId().equals(pegarCompanyPeloUserId(userId2).getId())){
             throw new BusinessException(HttpStatus.FORBIDDEN, "Apenas pessoas da mesma empresa podem interarir em alterações");
         }
     }
 
-    private CompanyProfile pegarCompanyPeloUserId(UUID userId){
+    public CompanyProfile pegarCompanyPeloUserId(UUID userId){
         var company = companyProfileRepository.findByUserId(userId);
         if(company.isEmpty()){
             var companyMember = companyMemberRepository.findByUserId(userId).orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Este usuário não está associado a nenhuma empresa"));

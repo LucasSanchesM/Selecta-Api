@@ -23,6 +23,8 @@ public interface CandidaturaRepository
 
     List<Candidatura> findByCandidatoUserIdOrderByCreatedAtDesc(UUID userId);
 
+    Optional<Candidatura> findByIdAndVagaEmpresaId(UUID id, UUID vagaEmpresaId);
+
     List<Candidatura> findByVagaIdOrderByCreatedAtDesc(UUID vagaId);
 
     long countByVagaIdAndStatus(UUID vagaId, StatusCandidatura status);

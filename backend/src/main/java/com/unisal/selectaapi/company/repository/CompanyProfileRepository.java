@@ -1,8 +1,10 @@
 package com.unisal.selectaapi.company.repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.unisal.selectaapi.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +17,6 @@ public interface CompanyProfileRepository extends JpaRepository<CompanyProfile, 
     boolean existsByCnpj(String cnpj);
 
     boolean existsByUserId(UUID userId);
+
+
 }
