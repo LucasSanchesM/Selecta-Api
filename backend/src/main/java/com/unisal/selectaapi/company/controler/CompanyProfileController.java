@@ -37,8 +37,10 @@ public class CompanyProfileController {
     @GetMapping("/me")
     @PreAuthorize("hasAuthority('COMPANY')")
     public ResponseEntity<CompanyProfileDto> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(companyProfileService.findProfileByUserId(UUID.fromString(jwt.getSubject())));
-    }
+        return ResponseEntity.ok(
+            companyProfileService.findCompanyOfUser(UUID.fromString(jwt.getSubject()))
+        );
+        }
 
     @PutMapping("/me")
     @PreAuthorize("hasAuthority('COMPANY')")

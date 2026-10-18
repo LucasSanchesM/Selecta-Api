@@ -98,7 +98,7 @@ public class AuthServiceTest {
             assertEquals(input.email(), emailUsedToSearch);
 
             //verifica se token seria emitido corretamente
-            assertEquals("token-fake", response.token());
+            assertEquals("token-fake", response.tokenJwt());
         }
 
         @Test

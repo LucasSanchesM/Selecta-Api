@@ -9,7 +9,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.unisal.selectaapi.company.dto.CompanyProfileDto;
 import com.unisal.selectaapi.company.dto.UpdateCompanyProfileDto;
+import com.unisal.selectaapi.company.entity.CompanyMember;
 import com.unisal.selectaapi.company.entity.CompanyProfile;
+import com.unisal.selectaapi.company.repository.CompanyMemberRepository;
 import com.unisal.selectaapi.company.repository.CompanyProfileRepository;
 import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.storage.FileStorage;
@@ -22,13 +24,16 @@ public class CompanyProfileService {
     private static final String LOGO_DIRECTORY = "company-logos";
 
     private final CompanyProfileRepository companyProfileRepository;
+    private final CompanyMemberRepository companyMemberRepository;
     private final FileStorage fileStorage;
     private final ImageUploadValidator imageValidator;
 
     public CompanyProfileService(CompanyProfileRepository companyProfileRepository,
+            CompanyMemberRepository companyMemberRepository,
             FileStorage fileStorage,
             ImageUploadValidator imageValidator) {
         this.companyProfileRepository = companyProfileRepository;
+        this.companyMemberRepository = companyMemberRepository;
         this.fileStorage = fileStorage;
         this.imageValidator = imageValidator;
     }
@@ -36,6 +41,20 @@ public class CompanyProfileService {
     @Transactional(readOnly = true)
     public CompanyProfileDto findProfileByUserId(UUID userId) {
         return toDto(getByUserId(userId));
+    }
+
+    /**
+     * Resolve a empresa do usuário logado: se ele for o dono, devolve o próprio perfil;
+     * se for membro da equipe, devolve o perfil da empresa à qual está vinculado.
+     * Roda dentro da transação para que {@code getUser()} (lazy) seja carregado no toDto.
+     */
+    @Transactional(readOnly = true)
+    public CompanyProfileDto findCompanyOfUser(UUID userId) {
+        var profile = companyProfileRepository.findByUserId(userId)
+                .or(() -> companyMemberRepository.findByUserId(userId).map(CompanyMember::getCompany))
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "Este usuário não está associado a nenhuma empresa"));
+        return toDto(profile);
     }
 
     @Transactional
