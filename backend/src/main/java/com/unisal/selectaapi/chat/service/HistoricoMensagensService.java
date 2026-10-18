@@ -133,14 +133,14 @@ public class HistoricoMensagensService {
             enviarSocket(candidatoUserId, dtoOutroLado);
         }
 
-        List<UUID> destinatarios = souCandidato
-                ? empresaUsers.stream().map(User::getId).toList()
-                : List.of(candidatoUserId);
+        UUID destinatarioNotificacao = souCandidato
+                ? candidatura.getVaga().getEmpresa().getUser().getId()   // dono da empresa
+                : candidatoUserId;
 
         if (historicoMensagensRepository.quantidadeDeMensagensNaoLidasPeloIdDaCandidatura(candidaturaId, userId) <= 1) {
-            destinatarios.forEach(id -> notificacaoService.publicarNotificacao(id,
+            notificacaoService.publicarNotificacao(destinatarioNotificacao,
                     new PublishNotificacaoDto("Mensagens não lidas", "Há mensagens não lidas",
-                            NotificacoesRole.CHAT, candidaturaId.toString())));
+                            NotificacoesRole.CHAT, candidaturaId.toString()));
         }
 
         return dtoMesmoLado;

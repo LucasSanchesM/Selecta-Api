@@ -42,16 +42,16 @@ public class CompanyMemberControler {
         return ResponseEntity.status(HttpStatus.CREATED).body(companyMemberService.criarMembro(userId(jwt), dto));
     }
 
-    @PatchMapping("/{memberId}")
+    @PatchMapping("/{userId}")
     public ResponseEntity<CompanyMemberDto> atualizar(@AuthenticationPrincipal Jwt jwt,
-                                                        @PathVariable("memberId") UUID alvoUserId,
+                                                        @PathVariable("userId") UUID alvoUserId,
                                                         @Valid @RequestBody UpdateCompanyMemberDto dto) {
         return ResponseEntity.ok(companyMemberService.updateInfos(alvoUserId, dto, userId(jwt)));
     }
 
-    @DeleteMapping("/{memberId}")
+    @DeleteMapping("/{userId}")
     public ResponseEntity<Void> remover(@AuthenticationPrincipal Jwt jwt,
-                                        @PathVariable("memberId") UUID alvoUserId) {
+                                        @PathVariable("userId") UUID alvoUserId) {
         companyMemberService.deleteMemberCompany(alvoUserId, userId(jwt));
         return ResponseEntity.noContent().build();
     }
