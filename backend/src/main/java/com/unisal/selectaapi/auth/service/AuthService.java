@@ -12,13 +12,17 @@ import com.unisal.selectaapi.user.entity.User;
 
 @Service
 public class AuthService {
+
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final SessionService sessionService;
     private final TwoFactorService twoFactorService;
 
-    public AuthService(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
-            SessionService sessionService, TwoFactorService twoFactorService) {
+    public AuthService(
+            UserRepository userRepository,
+            BCryptPasswordEncoder passwordEncoder,
+            SessionService sessionService,
+            TwoFactorService twoFactorService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.sessionService = sessionService;
@@ -29,20 +33,31 @@ public class AuthService {
         return loginUser(dto, ClientInfo.unknown());
     }
 
-    public LoginResponseDto loginUser(LoginRequestDto dto, ClientInfo client) {
+    public LoginResponseDto loginUser(
+            LoginRequestDto dto,
+            ClientInfo client) {
+
         var user = userRepository.findByEmail(dto.email());
 
-        if (user.isEmpty() || !passwordEncoder.matches(dto.password(), user.get().getPasswordHash())) {
-            throw new BusinessException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos");
+        if (user.isEmpty()
+                || !passwordEncoder.matches(
+                        dto.password(),
+                        user.get().getPasswordHash())) {
+            throw new BusinessException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Email ou senha inválidos");
         }
 
         if (!user.get().getRole().equals(dto.role().name())) {
-            throw new BusinessException(HttpStatus.FORBIDDEN,
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN,
                     "Esta conta não pertence a este tipo de acesso");
         }
 
         if (!user.get().getActive()) {
-            throw new BusinessException(HttpStatus.FORBIDDEN, "Conta não verificada. Verifique seu email para ativar sua conta.");
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN,
+                    "Conta não verificada. Verifique seu email para ativar sua conta.");
         }
 
         if (twoFactorService.requiresChallenge(user.get(), client)) {
@@ -52,7 +67,10 @@ public class AuthService {
         return sessionService.startSession(user.get(), client);
     }
 
-    /** Login social: o provedor já autenticou a pessoa, então a sessão nasce direto. */
+    /**
+     * Login social: o provedor já autenticou a pessoa,
+     * então a sessão nasce diretamente.
+     */
     public LoginResponseDto issueToken(User user, ClientInfo client) {
         return sessionService.startSession(user, client);
     }

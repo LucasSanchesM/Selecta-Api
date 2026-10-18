@@ -1,6 +1,7 @@
 package com.unisal.selectaapi.vagas.dto;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -36,7 +37,7 @@ public record VagaResponse(
     List<EtapaVagaResponse> etapas,
 
     Boolean ativa,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    Instant createdAt,
+    Instant updatedAt
 
 ) {}

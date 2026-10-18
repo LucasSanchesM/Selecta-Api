@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidatura.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -60,7 +61,7 @@ public class CandidaturaHistorico {
     private String autorNome;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public CandidaturaHistorico() {
     }
@@ -85,7 +86,7 @@ public class CandidaturaHistorico {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     public UUID getId() {
@@ -160,11 +161,11 @@ public class CandidaturaHistorico {
         this.autorNome = autorNome;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }

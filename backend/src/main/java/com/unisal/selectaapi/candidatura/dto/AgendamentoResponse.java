@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidatura.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ public record AgendamentoResponse(
         String etapaDescricao,
         String titulo,
         String mensagem,
-        LocalDateTime inicio,
+        Instant inicio,
         Integer duracaoMinutos,
         String link,
         StatusAgendamento status,
@@ -21,7 +22,7 @@ public record AgendamentoResponse(
         UUID criadoPorUserId,
         String criadoPorNome,
         String motivoCancelamento,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.auth.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,15 +35,15 @@ public class VerificationCode {
     private String code;
 
     @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public VerificationCode() {
     }
 
-    public VerificationCode(User user, String code, LocalDateTime expiresAt, LocalDateTime createdAt) {
+    public VerificationCode(User user, String code, Instant expiresAt, Instant createdAt) {
         this.user = user;
         this.code = code;
         this.expiresAt = expiresAt;
@@ -61,11 +62,11 @@ public class VerificationCode {
         return code;
     }
 
-    public LocalDateTime getExpiresAt() {
+    public Instant getExpiresAt() {
         return expiresAt;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 }

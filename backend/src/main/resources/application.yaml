@@ -1,9 +1,9 @@
 jwt:
   public:
-    key: "classpath:app.pub"
+    key: "${JWT_PUBLIC_KEY}"
   private:
-    key: "classpath:app.key"
-    
+    key: "${JWT_PRIVATE_KEY}"
+
 recomendacao:
   embedding:
     api-key: ${OPENAI_API_KEY:}
@@ -85,6 +85,7 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   seed:
     enabled: true
+
 r2:
   endpoint: ${R2_ENDPOINT:}
   access-key-id: ${R2_ACCESS_KEY_ID:}
@@ -95,13 +96,12 @@ r2:
 resend:
   api:
     key: ${API_KEY}
+
 logging:
   level:
-    # Se você estiver usando RestTemplate
+    org.springframework.messaging: TRACE
+    org.springframework.web.socket: TRACE
     org.springframework.web.client.RestTemplate: DEBUG
-    # Se você estiver usando WebClient
     org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
-    # Se você estiver usando RestClient (Spring Boot 3.2+)
     org.springframework.web.client.RestClient: DEBUG
-    # Opcional: Para ver o corpo (body) das requisições HTTP
     org.apache.hc.client5.http.wire: DEBUG

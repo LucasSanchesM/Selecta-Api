@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.user.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -10,6 +11,6 @@ public record UserResponseDto(
     String role,
     Boolean active,
     String avatarUrl,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    Instant createdAt,
+    Instant updatedAt
 ) {}

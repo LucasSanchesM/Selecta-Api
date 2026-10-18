@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidate.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,7 @@ public class CandidateProject {
     private List<String> toolsAndSkills = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public CandidateProject() {
     }
@@ -69,7 +70,7 @@ public class CandidateProject {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     public UUID getId() {
@@ -120,7 +121,7 @@ public class CandidateProject {
         this.toolsAndSkills = toolsAndSkills;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 }

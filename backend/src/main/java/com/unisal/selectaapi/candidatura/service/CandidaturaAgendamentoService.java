@@ -1,10 +1,12 @@
 package com.unisal.selectaapi.candidatura.service;
 
 import java.net.URI;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,13 +28,14 @@ public class CandidaturaAgendamentoService {
     private final CandidaturaService candidaturaService;
     private final UserRepository userRepository;
     private final CandidaturaMapper mapper;
+    private final NotificacaoService notificacaoService;
 
-    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository,
-            CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper) {
+    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, NotificacaoService notificacaoService) {
         this.agendamentoRepository = agendamentoRepository;
         this.candidaturaService = candidaturaService;
         this.userRepository = userRepository;
         this.mapper = mapper;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional
@@ -165,7 +168,7 @@ public class CandidaturaAgendamentoService {
         } catch (IllegalArgumentException exception) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "O link deve ser uma URL http ou https válida");
         }
-        if (dto.inicio().isBefore(LocalDateTime.now())) {
+        if (dto.inicio().isBefore(Instant.now())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "O agendamento deve ser futuro");
         }
     }

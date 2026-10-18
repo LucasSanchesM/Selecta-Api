@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.services;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -186,8 +187,8 @@ public class UserServiceTest {
             user.setEmail("pessoa@email.com");
             user.setPasswordHash("criptografado");
             user.setActive(false);
-            var expireCodeDate = LocalDateTime.now().plusMinutes(10);
-            var createCodeDate = LocalDateTime.now().minusMinutes(20);
+            var expireCodeDate = Instant.now().plusSeconds(10*60);
+            var createCodeDate = Instant.now().minusSeconds(10*20);
             var verificationCode = new VerificationCode(user, "12345", expireCodeDate, createCodeDate);
             when(userRepository.save(any(User.class))).thenAnswer(chamado -> {
                 User userInseridoComoArgumento = chamado.getArgument(0);
@@ -302,8 +303,8 @@ public class UserServiceTest {
             user.setEmail("pessoa@email.com");
             user.setPasswordHash("criptografado");
             user.setActive(false);
-            var expiredCodeDate = LocalDateTime.now().minusMinutes(10);
-            var createCodeDate = LocalDateTime.now().minusMinutes(20);
+            var expiredCodeDate = Instant.now().minusSeconds(10*60);
+            var createCodeDate = Instant.now().minusSeconds(20*60);
             var verificationCode = new VerificationCode(user, "12345", expiredCodeDate, createCodeDate);
             doReturn(Optional.of(user)).when(userRepository).findByEmail(dto.email());
             doReturn(Optional.of(verificationCode)).when(verificationCodeService).getCode(user);
@@ -327,8 +328,8 @@ public class UserServiceTest {
             user.setEmail("pessoa@email.com");
             user.setPasswordHash("criptografado");
             user.setActive(false);
-            var expireCodeDate = LocalDateTime.now().plusMinutes(10);
-            var createCodeDate = LocalDateTime.now().minusMinutes(20);
+            var expireCodeDate = Instant.now().plusSeconds(10*60);
+            var createCodeDate = Instant.now().minusSeconds(20*60);
             var verificationCode = new VerificationCode(user, "54321", expireCodeDate, createCodeDate);
             doReturn(Optional.of(user)).when(userRepository).findByEmail(dto.email());
             doReturn(Optional.of(verificationCode)).when(verificationCodeService).getCode(user);

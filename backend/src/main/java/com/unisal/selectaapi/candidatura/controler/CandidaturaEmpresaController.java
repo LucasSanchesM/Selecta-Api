@@ -3,6 +3,7 @@ package com.unisal.selectaapi.candidatura.controler;
 import java.util.List;
 import java.util.UUID;
 
+import com.unisal.selectaapi.company.service.CompanyMemberService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,13 +46,15 @@ public class CandidaturaEmpresaController {
     private final CandidaturaService candidaturaService;
     private final CandidaturaFeedbackService feedbackService;
     private final CandidaturaAgendamentoService agendamentoService;
+    private final CompanyMemberService companyMemberService;
 
     public CandidaturaEmpresaController(CandidaturaService candidaturaService,
-            CandidaturaFeedbackService feedbackService,
-            CandidaturaAgendamentoService agendamentoService) {
+                                        CandidaturaFeedbackService feedbackService,
+                                        CandidaturaAgendamentoService agendamentoService, CompanyMemberService companyMemberService) {
         this.candidaturaService = candidaturaService;
         this.feedbackService = feedbackService;
         this.agendamentoService = agendamentoService;
+        this.companyMemberService = companyMemberService;
     }
 
     // LISTAR CANDIDATURAS DAS VAGAS DA EMPRESA (com filtros opcionais)
@@ -63,7 +66,7 @@ public class CandidaturaEmpresaController {
             @RequestParam(required = false) EtapaProcesso etapa,
             @RequestParam(required = false) String candidatoNome) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         var candidaturas = candidaturaService.listarCandidaturasDaEmpresa(
                 empresaUserId, vagaId, status, etapa, candidatoNome);
@@ -77,7 +80,7 @@ public class CandidaturaEmpresaController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         return ResponseEntity.ok(candidaturaService.detalharComoEmpresa(empresaUserId, id));
     }
@@ -89,7 +92,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID id,
             @Valid @RequestBody AvancarEtapaDto dto) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         return ResponseEntity.ok(candidaturaService.avancarEtapa(empresaUserId, id, dto));
     }
@@ -101,7 +104,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID id,
             @Valid @RequestBody DecidirCandidaturaDto dto) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         return ResponseEntity.ok(candidaturaService.decidir(empresaUserId, id, dto));
     }
@@ -113,7 +116,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID id,
             @Valid @RequestBody CreateFeedbackDto dto) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
         var feedback = feedbackService.criar(empresaUserId, id, dto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(feedback);
@@ -126,7 +129,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID id,
             @RequestParam(required = false) EtapaProcesso etapa) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         return ResponseEntity.ok(feedbackService.listarComoEmpresa(empresaUserId, id, etapa));
     }
@@ -137,7 +140,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID id,
             @Valid @RequestBody CreateAgendamentoDto dto) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(agendamentoService.criar(empresaUserId, id, dto));
     }
@@ -147,7 +150,7 @@ public class CandidaturaEmpresaController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
         return ResponseEntity.ok(agendamentoService.listarComoEmpresa(empresaUserId, id));
     }
 
@@ -158,7 +161,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID agendamentoId,
             @Valid @RequestBody CreateAgendamentoDto dto) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
         return ResponseEntity.ok(agendamentoService.atualizar(empresaUserId, id, agendamentoId, dto));
     }
 
@@ -169,7 +172,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID agendamentoId,
             @RequestParam(required = false) String motivo) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
         agendamentoService.cancelar(empresaUserId, id, agendamentoId, motivo);
         return ResponseEntity.noContent().build();
     }
@@ -182,7 +185,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID feedbackId,
             @Valid @RequestBody CreateFeedbackDto dto) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         return ResponseEntity.ok(feedbackService.atualizar(empresaUserId, id, feedbackId, dto));
     }
@@ -194,7 +197,7 @@ public class CandidaturaEmpresaController {
             @PathVariable UUID id,
             @PathVariable UUID feedbackId) {
 
-        UUID empresaUserId = UUID.fromString(jwt.getSubject());
+        UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
         feedbackService.deletar(empresaUserId, id, feedbackId);
 
         return ResponseEntity.noContent().build();

@@ -1,10 +1,9 @@
 package com.unisal.selectaapi.candidatura.service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import com.unisal.selectaapi.vagas.entity.Vaga;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,15 +22,19 @@ import com.unisal.selectaapi.candidatura.entity.CandidaturaAgendamento;
 import com.unisal.selectaapi.candidatura.entity.CandidaturaHistorico;
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
 import com.unisal.selectaapi.candidatura.entity.StatusCandidatura;
+import com.unisal.selectaapi.candidatura.repository.CandidaturaAgendamentoRepository;
 import com.unisal.selectaapi.candidatura.repository.CandidaturaFeedbackRepository;
 import com.unisal.selectaapi.candidatura.repository.CandidaturaHistoricoRepository;
-import com.unisal.selectaapi.candidatura.repository.CandidaturaAgendamentoRepository;
 import com.unisal.selectaapi.candidatura.repository.CandidaturaRepository;
 import com.unisal.selectaapi.company.service.CompanyAccessService;
 import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.mensageria.dto.CandidaturaEmailRequest;
+import com.unisal.selectaapi.notificacoes.NotificacoesRole;
+import com.unisal.selectaapi.notificacoes.dtos.PublishNotificacaoDto;
+import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
 import com.unisal.selectaapi.user.UserRepository;
 import com.unisal.selectaapi.user.entity.User;
+import com.unisal.selectaapi.vagas.entity.Vaga;
 import com.unisal.selectaapi.vagas.repository.VagaRepository;
 
 @Service
@@ -47,8 +50,10 @@ public class CandidaturaService {
     private final CandidaturaMapper mapper;
     private final RabbitTemplate rabbitTemplate;
     private final CompanyAccessService companyAccessService;
+    private final NotificacaoService notificacaoService;
 
-    public CandidaturaService(CandidaturaRepository candidaturaRepository,
+    public CandidaturaService(
+            CandidaturaRepository candidaturaRepository,
             CandidaturaHistoricoRepository historicoRepository,
             CandidaturaFeedbackRepository feedbackRepository,
             CandidaturaAgendamentoRepository agendamentoRepository,
@@ -57,8 +62,9 @@ public class CandidaturaService {
             UserRepository userRepository,
             CandidaturaMapper mapper,
             RabbitTemplate rabbitTemplate,
-            CompanyAccessService companyAccessService) {
-        this.companyAccessService = companyAccessService;
+            CompanyAccessService companyAccessService,
+            NotificacaoService notificacaoService) {
+
         this.candidaturaRepository = candidaturaRepository;
         this.historicoRepository = historicoRepository;
         this.feedbackRepository = feedbackRepository;
@@ -68,28 +74,39 @@ public class CandidaturaService {
         this.userRepository = userRepository;
         this.mapper = mapper;
         this.rabbitTemplate = rabbitTemplate;
+        this.companyAccessService = companyAccessService;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional
     public CandidaturaResponse candidatar(UUID userId, CreateCandidatura dto) {
 
         Vaga vaga = vagaRepository.findById(dto.vagaId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
                         "Vaga não encontrada com o id: " + dto.vagaId()));
 
         if (Boolean.FALSE.equals(vaga.getAtiva())) {
-            throw new BusinessException(HttpStatus.CONFLICT,
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
                     "Esta vaga não está mais recebendo candidaturas");
         }
 
         CandidateProfile candidato = findOrCreateCandidateProfile(userId);
 
-        if (candidaturaRepository.existsByVagaIdAndCandidatoUserId(vaga.getId(), userId)) {
-            throw new BusinessException(HttpStatus.CONFLICT,
+        if (candidaturaRepository.existsByVagaIdAndCandidatoUserId(
+                vaga.getId(), userId)) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
                     "Você já se candidatou para esta vaga");
         }
 
-        var candidatura = new Candidatura(vaga, candidato, dto.cartaApresentacao(), dto.curriculoUrl());
+        var candidatura = new Candidatura(
+                vaga,
+                candidato,
+                dto.cartaApresentacao(),
+                dto.curriculoUrl());
+
         var salva = candidaturaRepository.save(candidatura);
 
         registrarHistorico(
@@ -107,16 +124,23 @@ public class CandidaturaService {
 
     @Transactional(readOnly = true)
     public List<CandidaturaResponse> listarMinhasCandidaturas(UUID userId) {
-        return candidaturaRepository.findByCandidatoUserIdOrderByCreatedAtDesc(userId)
+        return candidaturaRepository
+                .findByCandidatoUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(candidatura -> mapper.toResponse(
                         candidatura,
-                        feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()).size()))
+                        feedbackRepository
+                                .findByCandidaturaIdOrderByCreatedAtAsc(
+                                        candidatura.getId())
+                                .size()))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public CandidaturaDetalheResponse detalharComoCandidato(UUID userId, UUID candidaturaId) {
+    public CandidaturaDetalheResponse detalharComoCandidato(
+            UUID userId,
+            UUID candidaturaId) {
+
         Candidatura candidatura = buscarComoCandidato(userId, candidaturaId);
         return montarDetalhe(candidatura);
     }
@@ -126,13 +150,15 @@ public class CandidaturaService {
         Candidatura candidatura = buscarComoCandidato(userId, candidaturaId);
 
         if (candidatura.getStatus().isFinalizada()) {
-            throw new BusinessException(HttpStatus.CONFLICT,
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
                     "Esta candidatura já foi finalizada e não pode ser cancelada");
         }
 
         StatusCandidatura statusAnterior = candidatura.getStatus();
+
         candidatura.setStatus(StatusCandidatura.CANCELADA);
-        candidatura.setFinalizadaEm(LocalDateTime.now());
+        candidatura.setFinalizadaEm(Instant.now());
         candidatura.setMotivoEncerramento("Cancelada pelo candidato");
 
         Candidatura salva = candidaturaRepository.save(candidatura);
@@ -151,61 +177,95 @@ public class CandidaturaService {
         return mapper.toResponse(salva, contarFeedbacks(salva.getId()));
     }
 
-    // lado que a empresa usa
+    // Operações utilizadas pela empresa.
 
+    /**
+     * empresaUserId deve ser o ID do usuário logado,
+     * proprietário ou membro da equipe, e não o ID da empresa.
+     */
     @Transactional(readOnly = true)
-    public List<CandidaturaResponse> listarCandidaturasDaEmpresa(UUID empresaUserId,
+    public List<CandidaturaResponse> listarCandidaturasDaEmpresa(
+            UUID empresaUserId,
             UUID vagaId,
             StatusCandidatura status,
             EtapaProcesso etapa,
             String candidatoNome) {
 
-        UUID empresaId = companyAccessService.resolveCompany(empresaUserId).getId();
-        var spec = CandidaturaSpecification.withFilters(empresaId, vagaId, status, etapa, candidatoNome);
+        UUID empresaId = companyAccessService
+                .resolveCompany(empresaUserId)
+                .getId();
+
+        var spec = CandidaturaSpecification.withFilters(
+                empresaId,
+                vagaId,
+                status,
+                etapa,
+                candidatoNome);
 
         return candidaturaRepository.findAll(spec)
                 .stream()
-                .map(candidatura -> mapper.toResponse(candidatura, contarFeedbacks(candidatura.getId())))
+                .map(candidatura -> mapper.toResponse(
+                        candidatura,
+                        contarFeedbacks(candidatura.getId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public CandidaturaDetalheResponse detalharComoEmpresa(UUID empresaUserId, UUID candidaturaId) {
-        Candidatura candidatura = buscarComoEmpresa(empresaUserId, candidaturaId);
+    public CandidaturaDetalheResponse detalharComoEmpresa(
+            UUID empresaUserId,
+            UUID candidaturaId) {
+
+        Candidatura candidatura = buscarComoEmpresa(
+                empresaUserId,
+                candidaturaId);
+
         return montarDetalhe(candidatura);
     }
 
     @Transactional
-    public CandidaturaResponse avancarEtapa(UUID empresaUserId, UUID candidaturaId, AvancarEtapaDto dto) {
-        Candidatura candidatura = buscarComoEmpresa(empresaUserId, candidaturaId);
+    public CandidaturaResponse avancarEtapa(
+            UUID empresaUserId,
+            UUID candidaturaId,
+            AvancarEtapaDto dto) {
+
+        Candidatura candidatura = buscarComoEmpresa(
+                empresaUserId,
+                candidaturaId);
 
         if (candidatura.getStatus().isFinalizada()) {
-            throw new BusinessException(HttpStatus.CONFLICT,
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
                     "Não é possível alterar a etapa de uma candidatura finalizada");
         }
 
         EtapaProcesso etapaAnterior = candidatura.getEtapaAtual();
-        List<EtapaProcesso> fluxo = candidatura.getVaga().getEtapas().stream()
-            .map(etapa -> etapa.getEtapa())
-            .toList();
+
+        List<EtapaProcesso> fluxo = candidatura.getVaga()
+                .getEtapas()
+                .stream()
+                .map(etapa -> etapa.getEtapa())
+                .toList();
 
         if (fluxo.isEmpty()) {
             fluxo = EtapaProcesso.etapasConfiguraveisPadrao();
         }
 
         int indiceEtapaAtual = fluxo.indexOf(etapaAnterior);
+
         EtapaProcesso proximaEtapa = indiceEtapaAtual + 1 < fluxo.size()
-            ? fluxo.get(indiceEtapaAtual + 1)
-            : null;
+                ? fluxo.get(indiceEtapaAtual + 1)
+                : null;
 
         if (proximaEtapa == null || dto.etapa() != proximaEtapa) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST,
-                "A próxima etapa deve ser " + (proximaEtapa == null
-                    ? "inexistente, pois o fluxo já foi concluído"
-                    : proximaEtapa.getDescricao()));
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "A próxima etapa deve ser " + (proximaEtapa == null
+                            ? "inexistente, pois o fluxo já foi concluído"
+                            : proximaEtapa.getDescricao()));
         }
 
         candidatura.setEtapaAtual(dto.etapa());
+
         Candidatura salva = candidaturaRepository.save(candidatura);
         User autor = buscarUsuario(empresaUserId);
 
@@ -225,16 +285,25 @@ public class CandidaturaService {
     }
 
     @Transactional
-    public CandidaturaResponse decidir(UUID empresaUserId, UUID candidaturaId, DecidirCandidaturaDto dto) {
-        Candidatura candidatura = buscarComoEmpresa(empresaUserId, candidaturaId);
+    public CandidaturaResponse decidir(
+            UUID empresaUserId,
+            UUID candidaturaId,
+            DecidirCandidaturaDto dto) {
+
+        Candidatura candidatura = buscarComoEmpresa(
+                empresaUserId,
+                candidaturaId);
 
         if (candidatura.getStatus().isFinalizada()) {
-            throw new BusinessException(HttpStatus.CONFLICT,
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
                     "Esta candidatura já foi finalizada");
         }
 
-        if (dto.status() != StatusCandidatura.APROVADA && dto.status() != StatusCandidatura.REPROVADA) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST,
+        if (dto.status() != StatusCandidatura.APROVADA
+                && dto.status() != StatusCandidatura.REPROVADA) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
                     "A empresa só pode definir o status como APROVADA ou REPROVADA");
         }
 
@@ -243,7 +312,7 @@ public class CandidaturaService {
 
         candidatura.setStatus(dto.status());
         candidatura.setMotivoEncerramento(dto.motivo());
-        candidatura.setFinalizadaEm(LocalDateTime.now());
+        candidatura.setFinalizadaEm(Instant.now());
 
         if (dto.status() == StatusCandidatura.APROVADA) {
             candidatura.setEtapaAtual(EtapaProcesso.CONTRATACAO);
@@ -267,25 +336,48 @@ public class CandidaturaService {
         return mapper.toResponse(salva, contarFeedbacks(salva.getId()));
     }
 
-    public Candidatura buscarComoCandidato(UUID userId, UUID candidaturaId) {
-        return candidaturaRepository.findByIdAndCandidatoUserId(candidaturaId, userId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+    public Candidatura buscarComoCandidato(
+            UUID userId,
+            UUID candidaturaId) {
+
+        return candidaturaRepository
+                .findByIdAndCandidatoUserId(candidaturaId, userId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
                         "Candidatura não encontrada para este candidato"));
     }
 
-    /** {@code empresaUserId} é o usuário logado: proprietário ou membro da equipe. */
-    public Candidatura buscarComoEmpresa(UUID empresaUserId, UUID candidaturaId) {
-        UUID empresaId = companyAccessService.resolveCompany(empresaUserId).getId();
-        return candidaturaRepository.findByIdAndVagaEmpresaId(candidaturaId, empresaId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+    /**
+     * empresaUserId é o usuário logado:
+     * proprietário ou membro da equipe.
+     */
+    public Candidatura buscarComoEmpresa(
+            UUID empresaUserId,
+            UUID candidaturaId) {
+
+        UUID empresaId = companyAccessService
+                .resolveCompany(empresaUserId)
+                .getId();
+
+        return candidaturaRepository
+                .findByIdAndVagaEmpresaId(candidaturaId, empresaId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
                         "Candidatura não encontrada para as vagas desta empresa"));
     }
 
-    public void notificarCandidato(Candidatura candidatura, String mensagem) {
+    public void notificarCandidato(
+            Candidatura candidatura,
+            String mensagem) {
+
         notificarCandidato(candidatura, mensagem, null);
     }
 
-    public void notificarCandidato(Candidatura candidatura, String mensagem, CandidaturaAgendamento agendamento) {
+    public void notificarCandidato(
+            Candidatura candidatura,
+            String mensagem,
+            CandidaturaAgendamento agendamento) {
+
         User candidato = candidatura.getCandidato().getUser();
 
         var request = new CandidaturaEmailRequest(
@@ -301,22 +393,60 @@ public class CandidaturaService {
                 agendamento != null ? agendamento.getDuracaoMinutos() : null,
                 agendamento != null ? agendamento.getLink() : null);
 
-        rabbitTemplate.convertAndSend("email.exchange", "candidatura.atualizacao.key", request);
+        rabbitTemplate.convertAndSend(
+                "email.exchange",
+                "candidatura.atualizacao.key",
+                request);
+
+        if (agendamento != null) {
+            notificacaoService.publicarNotificacao(
+                    candidato.getId(),
+                    new PublishNotificacaoDto(
+                            "Agendamento de conversa",
+                            mensagem
+                                    + " Vaga: "
+                                    + candidatura.getVaga().getTitulo()
+                                    + ".",
+                            NotificacoesRole.AGENDAMENTO,
+                            agendamento.getId().toString()));
+        } else {
+            String descricao = (mensagem == null || mensagem.isBlank())
+                    ? "Sua candidatura agora está na etapa: "
+                            + candidatura.getEtapaAtual().getDescricao()
+                            + "."
+                    : mensagem;
+
+            notificacaoService.publicarNotificacao(
+                    candidato.getId(),
+                    new PublishNotificacaoDto(
+                            "Atualização na Candidatura",
+                            descricao,
+                            NotificacoesRole.CANDIDATURA_ATUALIZACAO,
+                            candidatura.getId().toString()));
+        }
     }
 
-    private CandidaturaDetalheResponse montarDetalhe(Candidatura candidatura) {
+    private CandidaturaDetalheResponse montarDetalhe(
+            Candidatura candidatura) {
+
         return mapper.toDetalheResponse(
                 candidatura,
-                historicoRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()),
-                feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()),
-                agendamentoRepository.findByCandidaturaIdOrderByInicioAsc(candidatura.getId()));
+                historicoRepository.findByCandidaturaIdOrderByCreatedAtAsc(
+                        candidatura.getId()),
+                feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(
+                        candidatura.getId()),
+                agendamentoRepository.findByCandidaturaIdOrderByInicioAsc(
+                        candidatura.getId()));
     }
 
     private long contarFeedbacks(UUID candidaturaId) {
-        return feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidaturaId).size();
+        return feedbackRepository
+                .findByCandidaturaIdOrderByCreatedAtAsc(candidaturaId)
+                .size();
     }
 
-    private void registrarHistorico(Candidatura candidatura,
+    private void registrarHistorico(
+            Candidatura candidatura,
             EtapaProcesso etapaAnterior,
             EtapaProcesso etapaNova,
             StatusCandidatura statusAnterior,
@@ -340,24 +470,25 @@ public class CandidaturaService {
 
     private User buscarUsuario(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "Usuário não encontrado"));
     }
-
-    /**
-     * Mesma regra usada no CandidateProfileService: o perfil é criado sob demanda,
-     * então o candidato consegue se candidatar mesmo sem ter aberto o perfil antes.
-     */
 
     private CandidateProfile findOrCreateCandidateProfile(UUID userId) {
         return candidateProfileRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     User user = buscarUsuario(userId);
+
                     if (!"CANDIDATE".equals(user.getRole())) {
-                        throw new BusinessException(HttpStatus.FORBIDDEN,
+                        throw new BusinessException(
+                                HttpStatus.FORBIDDEN,
                                 "Apenas candidatos podem se candidatar a vagas");
                     }
+
                     CandidateProfile profile = new CandidateProfile(user);
                     profile.setProfileImageUrl(user.getAvatarUrl());
+
                     return candidateProfileRepository.save(profile);
                 });
     }

@@ -1,6 +1,6 @@
 package com.unisal.selectaapi.company.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.unisal.selectaapi.user.entity.User;
@@ -20,8 +20,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 /**
- * Usuário convidado que acessa os dados de uma empresa. O proprietário
- * continua sendo o {@code CompanyProfile.user}; esta tabela guarda só os demais.
+ * Usuário convidado que acessa os dados de uma empresa.
+ * O proprietário continua sendo o CompanyProfile.user;
+ * esta tabela guarda os demais membros.
  */
 @Entity
 @Table(name = "company_members")
@@ -43,16 +44,20 @@ public class CompanyMember {
     @Column(nullable = false, length = 20)
     private CompanyMemberRole role;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public CompanyMember() {
     }
 
-    public CompanyMember(CompanyProfile company, User user, CompanyMemberRole role, UUID createdBy) {
+    public CompanyMember(
+            CompanyProfile company,
+            User user,
+            CompanyMemberRole role,
+            UUID createdBy) {
         this.company = company;
         this.user = user;
         this.role = role;
@@ -61,19 +66,31 @@ public class CompanyMember {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     public UUID getId() {
         return id;
     }
 
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
     public CompanyProfile getCompany() {
         return company;
     }
 
+    public void setCompany(CompanyProfile company) {
+        this.company = company;
+    }
+
     public User getUser() {
         return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public CompanyMemberRole getRole() {
@@ -88,7 +105,15 @@ public class CompanyMember {
         return createdBy;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public void setCreatedBy(UUID createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }

@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidatura.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
@@ -20,7 +21,7 @@ public record CreateAgendamentoDto(
 
         @Size(max = 5000, message = "a mensagem deve ter no máximo 5000 caracteres") String mensagem,
 
-        @NotNull(message = "inicio é obrigatório") @Future(message = "o agendamento deve ser futuro") LocalDateTime inicio,
+        @NotNull(message = "inicio é obrigatório") @Future(message = "o agendamento deve ser futuro") Instant inicio,
 
         @NotNull(message = "duracaoMinutos é obrigatória")
         @Min(value = 15, message = "a duração mínima é de 15 minutos")

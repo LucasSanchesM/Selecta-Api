@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidate.dto;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -9,8 +10,8 @@ public record CandidateExperienceDto(
     String companyName,
     String role,
     String description,
-    LocalDate startDate,
-    LocalDate endDate,
+    Instant startDate,
+    Instant endDate,
     Boolean isCurrent,
-    LocalDateTime createdAt
+    Instant createdAt
 ) {}

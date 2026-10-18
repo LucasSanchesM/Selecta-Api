@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidatura.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,8 +16,8 @@ public record FeedbackResponse(
         String mensagem,
         Integer nota,
         String autorNome,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 
 ) {
 }

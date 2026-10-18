@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -45,7 +46,7 @@ public class HistoricoMensagensControler {
     public ResponseEntity<Void> marcarMensagensComoLidas(@AuthenticationPrincipal Jwt jwt,
                                                          @PathVariable("candidaturaId") UUID candidaturaId){
         var userId = UUID.fromString(jwt.getSubject());
-        historicoMensagensService.marcarMensagensComoLidas(userId, candidaturaId, LocalDateTime.now());
+        historicoMensagensService.marcarMensagensComoLidas(userId, candidaturaId, Instant.now());
         return ResponseEntity.noContent().build();
     }
 

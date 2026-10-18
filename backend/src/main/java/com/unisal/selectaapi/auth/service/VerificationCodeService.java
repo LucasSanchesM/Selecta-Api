@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.auth.service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -13,7 +14,7 @@ import com.unisal.selectaapi.user.entity.User;
 @Service
 public class VerificationCodeService {
 
-    private static final int CODE_EXPIRATION_MINUTES = 10;
+    private static final int CODE_EXPIRATION_SECONDS = 10;
 
     private final VerificationCodeRepository verificationCodeRepository;
 
@@ -23,11 +24,11 @@ public class VerificationCodeService {
 
     @Transactional
     public void saveCode(User user, String code) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         verificationCodeRepository.deleteByUser(user);
         verificationCodeRepository.flush();
         verificationCodeRepository.save(
-                new VerificationCode(user, code, now.plusMinutes(CODE_EXPIRATION_MINUTES), now));
+                new VerificationCode(user, code, now.plusSeconds(CODE_EXPIRATION_SECONDS*60), now));
     }
 
     public Optional<VerificationCode> getCode(User user) {
@@ -36,7 +37,7 @@ public class VerificationCodeService {
 
     public boolean isRateLimited(User user) {
         return getCode(user)
-                .map(data -> data.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(1)))
+                .map(data -> data.getCreatedAt().isAfter(Instant.now().minusSeconds(60)))
                 .orElse(false);
     }
 

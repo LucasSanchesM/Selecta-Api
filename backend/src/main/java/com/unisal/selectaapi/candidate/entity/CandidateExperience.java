@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidate.entity;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -36,13 +37,13 @@ public class CandidateExperience {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    private LocalDate startDate;
-    private LocalDate endDate;
+    private Instant startDate;
+    private Instant endDate;
 
     private Boolean isCurrent;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public CandidateExperience() {
     }
@@ -52,8 +53,8 @@ public class CandidateExperience {
             String companyName,
             String role,
             String description,
-            LocalDate startDate,
-            LocalDate endDate,
+            Instant startDate,
+            Instant endDate,
             Boolean isCurrent) {
         this.candidateProfile = candidateProfile;
         this.companyName = companyName;
@@ -66,7 +67,7 @@ public class CandidateExperience {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
         if (this.isCurrent == null) {
             this.isCurrent = false;
         }
@@ -112,19 +113,19 @@ public class CandidateExperience {
         this.description = description;
     }
 
-    public LocalDate getStartDate() {
+    public Instant getStartDate() {
         return startDate;
     }
 
-    public void setStartDate(LocalDate startDate) {
+    public void setStartDate(Instant startDate) {
         this.startDate = startDate;
     }
 
-    public LocalDate getEndDate() {
+    public Instant getEndDate() {
         return endDate;
     }
 
-    public void setEndDate(LocalDate endDate) {
+    public void setEndDate(Instant endDate) {
         this.endDate = endDate;
     }
 
@@ -136,7 +137,7 @@ public class CandidateExperience {
         this.isCurrent = isCurrent;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 }

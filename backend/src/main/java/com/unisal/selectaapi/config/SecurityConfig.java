@@ -4,7 +4,6 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 
-import jakarta.servlet.http.Cookie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,8 +18,8 @@ import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCo
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
@@ -39,6 +38,8 @@ import com.unisal.selectaapi.auth.oauth.OAuthSuccessHandler;
 import com.unisal.selectaapi.auth.repository.UserSessionRepository;
 import com.unisal.selectaapi.auth.security.SessionJwtValidator;
 
+import jakarta.servlet.http.Cookie;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -55,36 +56,82 @@ public class SecurityConfig {
             OAuthSuccessHandler oAuthSuccessHandler,
             OAuthFailureHandler oAuthFailureHandler,
             OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> tokenResponseClient,
-            OAuth2AuthorizationRequestResolver authorizationRequestResolver) throws Exception {
+            OAuth2AuthorizationRequestResolver authorizationRequestResolver)
+            throws Exception {
+
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/users").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/users").hasAuthority("SCOPE_ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/users/**").hasAuthority("SCOPE_ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/users/**").hasAuthority("SCOPE_ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/register-company").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/verify-email").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/resend-code").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/refresh-token").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/two-factor/email", "/auth/two-factor/verify").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers("/vagas/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/users")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/users")
+                        .hasAuthority("SCOPE_ADMIN")
+
+                        .requestMatchers(HttpMethod.PUT, "/users/**")
+                        .hasAuthority("SCOPE_ADMIN")
+
+                        .requestMatchers(HttpMethod.DELETE, "/users/**")
+                        .hasAuthority("SCOPE_ADMIN")
+
+                        .requestMatchers(HttpMethod.GET, "/users/**")
+                        .authenticated()
+
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/auth")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/auth/register-company")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/auth/verify-email")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/auth/resend-code")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/auth/refresh-token")
+                        .permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/auth/two-factor/email",
+                                "/auth/two-factor/verify")
+                        .permitAll()
+
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**")
+                        .permitAll()
+
+                        .requestMatchers("/vagas/**")
+                        .permitAll()
+
                         .anyRequest()
                         .authenticated())
+
                 .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(
-                                endpoint -> endpoint.authorizationRequestResolver(authorizationRequestResolver))
-                        .tokenEndpoint(token -> token.accessTokenResponseClient(tokenResponseClient))
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestResolver(
+                                        authorizationRequestResolver))
+                        .tokenEndpoint(token -> token
+                                .accessTokenResponseClient(tokenResponseClient))
                         .successHandler(oAuthSuccessHandler)
                         .failureHandler(oAuthFailureHandler))
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults()))
+
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(
+                                SessionCreationPolicy.IF_REQUIRED));
 
         return http.build();
     }
@@ -92,22 +139,27 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+
         configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedMethods(
+                List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
     @Bean
-    public BearerTokenResolver bearerTokenResolver(){
+    public BearerTokenResolver bearerTokenResolver() {
         var token = new DefaultBearerTokenResolver();
+
         return request -> {
             if (request.getRequestURI().startsWith("/ws")) {
-
                 if (request.getCookies() != null) {
                     for (Cookie cookie : request.getCookies()) {
                         if (cookie.getName().equals("token")) {
@@ -119,23 +171,34 @@ public class SecurityConfig {
                 return null;
             }
 
-            return token.resolve(request); // REST continua como antes
+            return token.resolve(request);
         };
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(UserSessionRepository userSessionRepository) {
-        var decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefault(),
-                new SessionJwtValidator(userSessionRepository)));
+    public JwtDecoder jwtDecoder(
+            UserSessionRepository userSessionRepository) {
+
+        var decoder = NimbusJwtDecoder
+                .withPublicKey(publicKey)
+                .build();
+
+        decoder.setJwtValidator(
+                new DelegatingOAuth2TokenValidator<>(
+                        JwtValidators.createDefault(),
+                        new SessionJwtValidator(userSessionRepository)));
+
         return decoder;
     }
 
     @Bean
     public JwtEncoder jwtEncoder() {
-        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
+        JWK jwk = new RSAKey.Builder(this.publicKey)
+                .privateKey(this.privateKey)
+                .build();
+
         var jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
+
         return new NimbusJwtEncoder(jwks);
     }
 

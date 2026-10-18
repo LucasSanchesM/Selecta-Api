@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.company.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -14,6 +15,6 @@ public record CompanyProfileDto(
         String city,
         String state,
         String logoUrl,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        Instant createdAt,
+        Instant updatedAt) {
 }

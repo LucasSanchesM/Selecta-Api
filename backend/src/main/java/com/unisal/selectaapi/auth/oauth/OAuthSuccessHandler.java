@@ -28,8 +28,11 @@ import jakarta.servlet.http.HttpSession;
 @Component
 public class OAuthSuccessHandler implements AuthenticationSuccessHandler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(OAuthSuccessHandler.class);
-    private final Map<String, OAuthProviderService> providerServices;    private final AuthService authService;
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(OAuthSuccessHandler.class);
+
+    private final Map<String, OAuthProviderService> providerServices;
+    private final AuthService authService;
     private final String frontendUrl;
 
     public OAuthSuccessHandler(
@@ -46,57 +49,91 @@ public class OAuthSuccessHandler implements AuthenticationSuccessHandler {
             HttpServletRequest request,
             HttpServletResponse response,
             Authentication authentication) throws IOException {
-        
-        OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
-        String registrationId = oauthToken.getAuthorizedClientRegistrationId();
 
-        OAuthProviderService providerService = providerServices.get(registrationId);
+        OAuth2AuthenticationToken oauthToken =
+                (OAuth2AuthenticationToken) authentication;
 
-        if (providerService == null || !(oauthToken.getPrincipal() instanceof OidcUser oidcUser)) {
-                redirectFailure(request, response, "oauth_failed", registrationId);
-                return;
+        String registrationId =
+                oauthToken.getAuthorizedClientRegistrationId();
+
+        OAuthProviderService providerService =
+                providerServices.get(registrationId);
+
+        if (providerService == null
+                || !(oauthToken.getPrincipal() instanceof OidcUser oidcUser)) {
+            redirectFailure(request, response, "oauth_failed", registrationId);
+            return;
         }
 
         try {
-
             var user = providerService.authenticateCandidate(oidcUser);
-            var token = authService.issueToken(user, ClientInfo.from(request));
-            ResponseCookie cookie = ResponseCookie.from("token", token.tokenJwt())
+
+            var token = authService.issueToken(
+                    user,
+                    ClientInfo.from(request));
+
+            ResponseCookie cookie = ResponseCookie
+                    .from("token", token.tokenJwt())
                     .httpOnly(false)
                     .path("/")
                     .maxAge(token.expiresInJwt())
                     .sameSite("Lax")
                     .build();
-            ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", token.refreshToken())
+
+            ResponseCookie refreshCookie = ResponseCookie
+                    .from("refresh_token", token.refreshToken())
                     .httpOnly(false)
                     .path("/")
                     .maxAge(Duration.ofDays(SessionService.REFRESH_TOKEN_DAYS))
                     .sameSite("Lax")
                     .build();
 
-            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-            
+            response.addHeader(
+                    HttpHeaders.SET_COOKIE,
+                    cookie.toString());
+
+            response.addHeader(
+                    HttpHeaders.SET_COOKIE,
+                    refreshCookie.toString());
+
             invalidateSession(request);
+
             response.sendRedirect(frontendUrl + "/dashboard");
+
         } catch (BusinessException exception) {
-            LOGGER.warn("{} autenticou, mas a conta foi recusada: status={}, reason={}", registrationId,
-                    exception.getStatus().value(), exception.getMessage());
+            LOGGER.warn(
+                    "{} autenticou, mas a conta foi recusada: status={}, reason={}",
+                    registrationId,
+                    exception.getStatus().value(),
+                    exception.getMessage());
+
             String errorCode = exception.getStatus().value() == 403
                     ? "account_type"
                     : "email_unavailable";
+
             redirectFailure(request, response, errorCode, registrationId);
         }
     }
 
-    private void redirectFailure(HttpServletRequest request, HttpServletResponse response, String errorCode, String registrationId)
-            throws IOException {
+    private void redirectFailure(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String errorCode,
+            String registrationId) throws IOException {
+
         invalidateSession(request);
-        response.sendRedirect(frontendUrl + "/auth/candidato?oauthError=" + errorCode + "&provider=" +  registrationId);
+
+        response.sendRedirect(
+                frontendUrl
+                        + "/auth/candidato?oauthError="
+                        + errorCode
+                        + "&provider="
+                        + registrationId);
     }
 
     private void invalidateSession(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
+
         if (session != null) {
             session.invalidate();
         }

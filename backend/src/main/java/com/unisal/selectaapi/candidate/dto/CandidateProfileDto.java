@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidate.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +27,6 @@ public record CandidateProfileDto(
     List<String> skills,
     List<CandidateExperienceDto> experiences,
     List<CandidateProjectDto> projects,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    Instant createdAt,
+    Instant updatedAt
 ) {}

@@ -3,6 +3,7 @@ package com.unisal.selectaapi.mensageria.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 import com.resend.Resend;
@@ -213,7 +214,8 @@ public class CandidaturaEmailService implements CandidaturaNotifier {
         }
 
         String titulo = escapar(request.agendamentoTitulo());
-        String data = request.agendamentoInicio().format(AGENDAMENTO_FORMATTER);
+        String data = request.agendamentoInicio().atZone(ZoneId.of("America/Sao_Paulo"))
+                .format(AGENDAMENTO_FORMATTER);
         String duracao = String.valueOf(request.agendamentoDuracaoMinutos());
         String link = escapar(request.agendamentoLink());
 

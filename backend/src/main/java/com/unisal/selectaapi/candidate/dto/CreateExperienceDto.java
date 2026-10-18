@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidate.dto;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 import jakarta.validation.constraints.NotBlank;
@@ -12,7 +13,7 @@ public record CreateExperienceDto(
     String role,
 
     String description,
-    LocalDate startDate,
-    LocalDate endDate,
+    Instant startDate,
+    Instant endDate,
     Boolean isCurrent
 ) {}

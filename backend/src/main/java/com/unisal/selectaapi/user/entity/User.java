@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.user.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,9 +12,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "users")
+@SQLRestriction("excluido_at IS NULL")
 public class User {
 
     @Id
@@ -46,10 +49,13 @@ public class User {
     private String googleSubject;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
+
+    @Column(name = "excluido_at")
+    private Instant excluidoAt;
 
     public User() {
     }
@@ -64,8 +70,8 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
         if (this.active == null) {
             this.active = true;
         }
@@ -74,9 +80,17 @@ public class User {
         }
     }
 
+    public Instant getExcluidoAt() {
+        return excluidoAt;
+    }
+
+    public void setExcluidoAt(Instant excluidoAt) {
+        this.excluidoAt = excluidoAt;
+    }
+
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     public UUID getId() {
@@ -143,19 +157,19 @@ public class User {
         this.linkedinSubject = linkedinSubject;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
+    public Instant getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
+    public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
 

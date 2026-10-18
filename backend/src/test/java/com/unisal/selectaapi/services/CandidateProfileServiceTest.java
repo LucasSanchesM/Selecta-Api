@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.services;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -147,8 +148,8 @@ public class CandidateProfileServiceTest {
         profile.getProjects().add(proj);
 
         // datas
-        profile.setCreatedAt(LocalDateTime.now());
-        profile.setUpdatedAt(LocalDateTime.now());
+        profile.setCreatedAt(Instant.now());
+        profile.setUpdatedAt(Instant.now());
     }
 
     @Nested
@@ -1005,7 +1006,7 @@ public class CandidateProfileServiceTest {
                                     "Tech Solutions",
                                     "Desenvolvedor Backend Junior",
                                     "Responsável pelo desenvolvimento e manutenção de APIs REST utilizando Spring Boot",
-                                    LocalDate.of(2023, 3, 1),
+                                    Instant.now(),
                                     null,
                                     true);
         }
@@ -1088,7 +1089,7 @@ public class CandidateProfileServiceTest {
             "EmpresaNova",
             "DesenvolvedorNovo",
             "Responsável pelo desenvolvimento e manutenção de APIs REST utilizando Spring Boot",
-            LocalDate.of(2023, 3, 1),
+            Instant.now(),
             null,
             true
             );

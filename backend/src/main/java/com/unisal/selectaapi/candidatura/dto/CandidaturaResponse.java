@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidatura.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -42,9 +43,9 @@ public record CandidaturaResponse(
 
                 long totalFeedbacks,
 
-                LocalDateTime finalizadaEm,
-                LocalDateTime createdAt,
-                LocalDateTime updatedAt
+                Instant finalizadaEm,
+                Instant createdAt,
+                Instant updatedAt
 
 ) {
 }

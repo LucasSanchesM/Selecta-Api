@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidatura.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -40,7 +41,7 @@ public class CandidaturaAgendamento {
     private String mensagem;
 
     @Column(nullable = false)
-    private LocalDateTime inicio;
+    private Instant inicio;
 
     @Column(name = "duracao_minutos", nullable = false)
     private Integer duracaoMinutos;
@@ -62,16 +63,16 @@ public class CandidaturaAgendamento {
     private String motivoCancelamento;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     public CandidaturaAgendamento() {
     }
 
     public CandidaturaAgendamento(Candidatura candidatura, EtapaProcesso etapa, String titulo,
-            String mensagem, LocalDateTime inicio, Integer duracaoMinutos, String link,
+            String mensagem, Instant inicio, Integer duracaoMinutos, String link,
             UUID criadoPorUserId, String criadoPorNome) {
         this.candidatura = candidatura;
         this.etapa = etapa;
@@ -87,8 +88,8 @@ public class CandidaturaAgendamento {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
         if (this.status == null) {
             this.status = StatusAgendamento.PENDENTE;
         }
@@ -96,7 +97,7 @@ public class CandidaturaAgendamento {
 
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     public UUID getId() { return id; }
@@ -104,20 +105,20 @@ public class CandidaturaAgendamento {
     public EtapaProcesso getEtapa() { return etapa; }
     public String getTitulo() { return titulo; }
     public String getMensagem() { return mensagem; }
-    public LocalDateTime getInicio() { return inicio; }
+    public Instant getInicio() { return inicio; }
     public Integer getDuracaoMinutos() { return duracaoMinutos; }
     public String getLink() { return link; }
     public StatusAgendamento getStatus() { return status; }
     public UUID getCriadoPorUserId() { return criadoPorUserId; }
     public String getCriadoPorNome() { return criadoPorNome; }
     public String getMotivoCancelamento() { return motivoCancelamento; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 
     public void setEtapa(EtapaProcesso etapa) { this.etapa = etapa; }
     public void setTitulo(String titulo) { this.titulo = titulo; }
     public void setMensagem(String mensagem) { this.mensagem = mensagem; }
-    public void setInicio(LocalDateTime inicio) { this.inicio = inicio; }
+    public void setInicio(Instant inicio) { this.inicio = inicio; }
     public void setDuracaoMinutos(Integer duracaoMinutos) { this.duracaoMinutos = duracaoMinutos; }
     public void setLink(String link) { this.link = link; }
     public void setStatus(StatusAgendamento status) { this.status = status; }
