@@ -63,6 +63,34 @@ public class RabbitMqConfig {
         return BindingBuilder.bind(candidaturaQueueDlq()).to(exchange()).with("candidatura.atualizacao.dlq.key");
     }
 
+    public static final String EXCHANGE = "email.exchange";
+    public static final String EMBEDDING_QUEUE = "embedding.atualizacao";
+    public static final String EMBEDDING_ROUTING_KEY = "embedding.atualizacao.key";
+    private static final String EMBEDDING_DLQ = "embedding.atualizacao.dlq";
+    private static final String EMBEDDING_DLQ_ROUTING_KEY = "embedding.atualizacao.dlq.key";
+
+    @Bean
+    public Queue embeddingQueue() {
+        return new Queue(EMBEDDING_QUEUE, true, false, false,
+                Map.of("x-dead-letter-routing-key", EMBEDDING_DLQ_ROUTING_KEY,
+                        "x-dead-letter-exchange", EXCHANGE));
+    }
+
+    @Bean
+    public Queue embeddingQueueDlq() {
+        return new Queue(EMBEDDING_DLQ, true, false, false, null);
+    }
+
+    @Bean
+    public Binding embeddingBinding() {
+        return BindingBuilder.bind(embeddingQueue()).to(exchange()).with(EMBEDDING_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding embeddingBindingDlq() {
+        return BindingBuilder.bind(embeddingQueueDlq()).to(exchange()).with(EMBEDDING_DLQ_ROUTING_KEY);
+    }
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();

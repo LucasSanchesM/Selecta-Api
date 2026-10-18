@@ -3,13 +3,23 @@ package com.unisal.selectaapi.vagas.services;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessException;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.unisal.selectaapi.company.entity.CompanyProfile;
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
@@ -17,11 +27,15 @@ import com.unisal.selectaapi.company.repository.CompanyProfileRepository;
 
 import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.geo.GeoCodingService;
+import com.unisal.selectaapi.recomendacao.EmbeddingRequestedEvent;
+import com.unisal.selectaapi.recomendacao.FiltroVagas;
+import com.unisal.selectaapi.recomendacao.VagaRecomendacaoService;
 import com.unisal.selectaapi.vagas.repository.VagaRepository;
 import com.unisal.selectaapi.vagas.VagaRole;
 import com.unisal.selectaapi.vagas.VagaSpecification;
 import com.unisal.selectaapi.vagas.dto.CreateVagaDto;
 import com.unisal.selectaapi.vagas.dto.EtapaVagaResponse;
+import com.unisal.selectaapi.vagas.dto.ListagemVagas;
 import com.unisal.selectaapi.vagas.dto.UpdateVaga;
 import com.unisal.selectaapi.vagas.dto.VagaResponse;
 import com.unisal.selectaapi.vagas.entity.ModalidadeVaga;
@@ -31,15 +45,29 @@ import com.unisal.selectaapi.vagas.entity.VagaEtapa;
 @Service
 public class VagaService {
 
+    private static final Logger log = LoggerFactory.getLogger(VagaService.class);
+
     private final VagaRepository vagaRepository;
     private final CompanyProfileRepository companyProfileRepository;
     private final GeoCodingService geoCodingService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final VagaRecomendacaoService recomendacaoService;
+    private final TransactionTemplate readOnlyTx;
 
     public VagaService(VagaRepository vagaRepository, CompanyProfileRepository companyProfileRepository,
-            GeoCodingService geoCodingService) {
+            GeoCodingService geoCodingService, ApplicationEventPublisher eventPublisher,
+            VagaRecomendacaoService recomendacaoService, PlatformTransactionManager transactionManager) {
         this.vagaRepository = vagaRepository;
         this.companyProfileRepository = companyProfileRepository;
         this.geoCodingService = geoCodingService;
+        this.eventPublisher = eventPublisher;
+        this.recomendacaoService = recomendacaoService;
+        if (transactionManager != null) {
+            this.readOnlyTx = new TransactionTemplate(transactionManager);
+            this.readOnlyTx.setReadOnly(true);
+        } else {
+            this.readOnlyTx = null;
+        }
     }
 
     @Transactional
@@ -70,6 +98,7 @@ public class VagaService {
         configurarEtapas(vaga, dto.etapas());
 
         var savedVaga = vagaRepository.save(vaga);
+        solicitarEmbedding(savedVaga);
 
         return mapToResponse(savedVaga);
     }
@@ -103,6 +132,70 @@ public class VagaService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    /**
+     * Same listing as {@link #findAllWithFilters}, but when the caller is a candidate
+     * with an indexed profile the page is ordered by semantic similarity.
+     * Any failure in the recommendation path falls back to the default ordering.
+     */
+    public ListagemVagas listarVagas(
+            String titulo,
+            VagaRole categoria,
+            ModalidadeVaga modalidade,
+            BigDecimal salarioMin,
+            BigDecimal salarioMax,
+            String cidade,
+            String estado,
+            Boolean ativa,
+            UUID companyProfileId,
+            int page,
+            int size,
+            UUID usuarioId
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+
+        if (usuarioId != null && recomendacaoService != null && readOnlyTx != null && recomendacaoService.isAtiva()) {
+            try {
+                var filtro = new FiltroVagas(titulo, categoria, modalidade, salarioMin, salarioMax,
+                        cidade, estado, ativa, companyProfileId);
+                var ids = recomendacaoService.rankearVagas(usuarioId, filtro, safePage, safeSize);
+                if (ids.isPresent()) {
+                    List<VagaResponse> vagas = readOnlyTx.execute(status -> carregarNaOrdem(ids.get()));
+                    return new ListagemVagas(vagas, true);
+                }
+            } catch (DataAccessException exception) {
+                log.warn("Recomendação indisponível, usando ordenação padrão: {}",
+                        exception.getMostSpecificCause().getMessage());
+            }
+        }
+
+        List<VagaResponse> vagas = readOnlyTx != null
+                ? readOnlyTx.execute(status -> findAllWithFilters(titulo, categoria, modalidade,
+                        salarioMin, salarioMax, cidade, estado, ativa, companyProfileId, safePage, safeSize))
+                : findAllWithFilters(titulo, categoria, modalidade,
+                        salarioMin, salarioMax, cidade, estado, ativa, companyProfileId, safePage, safeSize);
+        return new ListagemVagas(vagas, false);
+    }
+
+    private List<VagaResponse> carregarNaOrdem(List<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Vaga> porId = vagaRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Vaga::getId, Function.identity()));
+        return ids.stream()
+                .map(porId::get)
+                .filter(java.util.Objects::nonNull)
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private void solicitarEmbedding(Vaga vaga) {
+        if (eventPublisher != null && vaga != null && vaga.getId() != null) {
+            eventPublisher.publishEvent(EmbeddingRequestedEvent.vaga(vaga.getId()));
+        }
     }
 
     public List<VagaResponse> findAllByCompany(UUID companyProfileId) {
@@ -181,6 +274,7 @@ public class VagaService {
             vaga.setEstado(enderecoNovo.estado());
         }
         var updatedVaga = vagaRepository.save(vaga);
+        solicitarEmbedding(updatedVaga);
 
         return mapToResponse(updatedVaga);
     }

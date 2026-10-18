@@ -94,3 +94,15 @@ r2:
 resend:
   api:
     key: ${API_KEY}
+
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  embedding:
+    model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+
+recomendacao:
+  reconcile:
+    initial-delay-ms: 60000
+    interval-ms: 600000
+    batch-size: 100

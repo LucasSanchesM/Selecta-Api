@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import com.unisal.selectaapi.candidate.repository.CandidateExperienceRepository;
 import com.unisal.selectaapi.candidate.repository.CandidateProfileRepository;
 import com.unisal.selectaapi.candidate.repository.CandidateProjectRepository;
 import com.unisal.selectaapi.exception.BusinessException;
+import com.unisal.selectaapi.recomendacao.EmbeddingRequestedEvent;
 import com.unisal.selectaapi.storage.FileStorage;
 import com.unisal.selectaapi.storage.StoredFile;
 import com.unisal.selectaapi.user.UserRepository;
@@ -41,17 +43,20 @@ public class CandidateProfileService {
     private final CandidateProjectRepository candidateProjectRepository;
     private final UserRepository userRepository;
     private final FileStorage fileStorage;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CandidateProfileService(CandidateProfileRepository candidateProfileRepository,
             CandidateExperienceRepository candidateExperienceRepository,
             CandidateProjectRepository candidateProjectRepository,
             UserRepository userRepository,
-            FileStorage fileStorage) {
+            FileStorage fileStorage,
+            ApplicationEventPublisher eventPublisher) {
         this.candidateProfileRepository = candidateProfileRepository;
         this.candidateExperienceRepository = candidateExperienceRepository;
         this.candidateProjectRepository = candidateProjectRepository;
         this.userRepository = userRepository;
         this.fileStorage = fileStorage;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -102,7 +107,9 @@ public class CandidateProfileService {
             )));
         }
 
-        return toDto(candidateProfileRepository.save(profile));
+        CandidateProfile saved = candidateProfileRepository.save(profile);
+        solicitarEmbedding(saved);
+        return toDto(saved);
     }
 
     @Transactional
@@ -163,6 +170,7 @@ public class CandidateProfileService {
         }
 
         CandidateProfile saved = candidateProfileRepository.save(profile);
+        solicitarEmbedding(saved);
         return toDto(saved);
     }
 
@@ -233,6 +241,7 @@ public class CandidateProfileService {
 
         profile.getExperiences().add(exp);
         CandidateProfile saved = candidateProfileRepository.save(profile);
+        solicitarEmbedding(saved);
         return toDto(saved);
     }
 
@@ -250,6 +259,7 @@ public class CandidateProfileService {
         exp.setIsCurrent(dto.isCurrent() != null ? dto.isCurrent() : false);
 
         candidateExperienceRepository.save(exp);
+        solicitarEmbedding(exp.getCandidateProfile());
         return findProfileByUserId(userId);
     }
 
@@ -263,6 +273,7 @@ public class CandidateProfileService {
         profile.getExperiences().remove(exp);
         candidateExperienceRepository.delete(exp);
         CandidateProfile saved = candidateProfileRepository.save(profile);
+        solicitarEmbedding(saved);
         return toDto(saved);
     }
 
@@ -279,6 +290,7 @@ public class CandidateProfileService {
 
         profile.getProjects().add(project);
         CandidateProfile saved = candidateProfileRepository.save(profile);
+        solicitarEmbedding(saved);
         return toDto(saved);
     }
 
@@ -296,6 +308,7 @@ public class CandidateProfileService {
         }
 
         candidateProjectRepository.save(project);
+        solicitarEmbedding(project.getCandidateProfile());
         return findProfileByUserId(userId);
     }
 
@@ -309,7 +322,14 @@ public class CandidateProfileService {
         profile.getProjects().remove(project);
         candidateProjectRepository.delete(project);
         CandidateProfile saved = candidateProfileRepository.save(profile);
+        solicitarEmbedding(saved);
         return toDto(saved);
+    }
+
+    private void solicitarEmbedding(CandidateProfile profile) {
+        if (eventPublisher != null && profile != null && profile.getId() != null) {
+            eventPublisher.publishEvent(EmbeddingRequestedEvent.candidato(profile.getId()));
+        }
     }
 
     private CandidateProfile getProfileOrThrow(UUID userId) {

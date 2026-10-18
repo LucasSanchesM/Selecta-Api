@@ -15,7 +15,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: ${SPRING_DATASOURCE_DB}
       POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
