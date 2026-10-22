@@ -1,14 +1,14 @@
 package com.unisal.selectaapi.auth.oauth;
 
 import java.io.IOException;
-import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import java.net.URLEncoder;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -27,7 +27,8 @@ import jakarta.servlet.http.HttpSession;
 public class OAuthSuccessHandler implements AuthenticationSuccessHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OAuthSuccessHandler.class);
-    private final Map<String, OAuthProviderService> providerServices;    private final AuthService authService;
+    private final Map<String, OAuthProviderService> providerServices;
+    private final AuthService authService;
     private final String frontendUrl;
 
     public OAuthSuccessHandler(
@@ -59,25 +60,14 @@ public class OAuthSuccessHandler implements AuthenticationSuccessHandler {
 
             var user = providerService.authenticateCandidate(oidcUser);
             var token = authService.issueToken(user);
-            ResponseCookie cookieJwt = ResponseCookie.from("token", token.tokenJwt())
-                    .httpOnly(false)
-                    .path("/")
-                    .maxAge(token.expiresInJwt())
-                    .sameSite("Lax")
-                    .build();
-            ResponseCookie cookieRefresh = ResponseCookie.from("refresh_token", token.refreshToken())
-                    .httpOnly(false)
-                    .path("/")
-                    .maxAge(Duration.ofDays(7))
-                    .sameSite("Lax")
-                    .build();
 
-            response.addHeader(HttpHeaders.SET_COOKIE, cookieJwt.toString());
-            response.addHeader(HttpHeaders.SET_COOKIE, cookieRefresh.toString());
-
+            String fragment = "token=" + URLEncoder.encode(token.tokenJwt(), StandardCharsets.UTF_8)
+                    + "&refresh=" + URLEncoder.encode(token.refreshToken(), StandardCharsets.UTF_8)
+                    + "&expires=" + token.expiresInJwt();
 
             invalidateSession(request);
-            response.sendRedirect(frontendUrl + "/dashboard");
+            response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+            response.sendRedirect(frontendUrl + "/auth/callback#" + fragment);
         } catch (BusinessException exception) {
             LOGGER.warn("{} autenticou, mas a conta foi recusada: status={}, reason={}", registrationId,
                     exception.getStatus().value(), exception.getMessage());
