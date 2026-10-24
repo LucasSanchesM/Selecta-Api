@@ -84,6 +84,8 @@ public class VagaService {
         var vaga = new Vaga();
         vaga.setTitulo(dto.titulo());
         vaga.setSalario(dto.salario());
+        vaga.setQuantidadeVagas(dto.quantidadeVagas());
+        vaga.setVagasPreenchidas(0);
         vaga.setDescricao(dto.descricao());
         vaga.setBeneficios(dto.beneficios());
         vaga.setEmpresa(empresa);
@@ -240,6 +242,15 @@ public class VagaService {
             vaga.setSalario(dto.salario());
         }
 
+        if (dto.quantidadeVagas() != null) {
+            int preenchidas = vaga.getVagasPreenchidas() == null ? 0 : vaga.getVagasPreenchidas();
+            if (dto.quantidadeVagas() < preenchidas) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST,
+                        "A quantidade de vagas não pode ser menor que as já preenchidas (" + preenchidas + ")");
+            }
+            vaga.setQuantidadeVagas(dto.quantidadeVagas());
+        }
+
         if (dto.descricao() != null && !dto.descricao().isBlank()) {
             vaga.setDescricao(dto.descricao());
         }
@@ -319,6 +330,9 @@ public class VagaService {
                 vaga.getId(),
                 vaga.getTitulo(),
                 vaga.getSalario(),
+                vaga.getQuantidadeVagas(),
+                vaga.getVagasPreenchidas(),
+                vaga.getVagasDisponiveis(),
                 vaga.getDescricao(),
                 vaga.getBeneficios(),
                 empresa.getId(),

@@ -14,6 +14,9 @@ public record VagaResponse(
     UUID id,
     String titulo,
     BigDecimal salario,
+    Integer quantidadeVagas,
+    Integer vagasPreenchidas,
+    Integer vagasDisponiveis,
     String descricao,
     String beneficios,
 

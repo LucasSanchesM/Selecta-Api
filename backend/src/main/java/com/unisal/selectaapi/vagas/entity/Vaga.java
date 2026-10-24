@@ -44,6 +44,13 @@ public class Vaga {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal salario;
 
+    @Column(name = "quantidade_vagas")
+    private Integer quantidadeVagas;
+
+    // Quantas posições já foram preenchidas (candidaturas aprovadas)
+    @Column(name = "vagas_preenchidas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+    private Integer vagasPreenchidas = 0;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descricao;
 
@@ -159,6 +166,44 @@ public class Vaga {
 
     public void setSalario(BigDecimal salario) {
         this.salario = salario;
+    }
+
+    public Integer getQuantidadeVagas() {
+        return quantidadeVagas;
+    }
+
+    public void setQuantidadeVagas(Integer quantidadeVagas) {
+        this.quantidadeVagas = quantidadeVagas;
+    }
+
+    public Integer getVagasPreenchidas() {
+        return vagasPreenchidas;
+    }
+
+    public void setVagasPreenchidas(Integer vagasPreenchidas) {
+        this.vagasPreenchidas = vagasPreenchidas;
+    }
+
+    // null quando a quantidade não foi informada (sem limite)
+    public Integer getVagasDisponiveis() {
+        if (quantidadeVagas == null) {
+            return null;
+        }
+        int preenchidas = vagasPreenchidas == null ? 0 : vagasPreenchidas;
+        return Math.max(quantidadeVagas - preenchidas, 0);
+    }
+
+    public boolean temPosicaoDisponivel() {
+        Integer disponiveis = getVagasDisponiveis();
+        return disponiveis == null || disponiveis > 0;
+    }
+
+    // Chamado quando uma candidatura é aprovada. Fecha a vaga ao zerar as posições.
+    public void registrarContratacao() {
+        this.vagasPreenchidas = (this.vagasPreenchidas == null ? 0 : this.vagasPreenchidas) + 1;
+        if (!temPosicaoDisponivel()) {
+            this.ativa = false;
+        }
     }
 
     public String getDescricao() {

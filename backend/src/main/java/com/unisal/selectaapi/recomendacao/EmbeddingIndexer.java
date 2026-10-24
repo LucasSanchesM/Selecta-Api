@@ -56,7 +56,6 @@ public class EmbeddingIndexer {
             return;
         }
 
-        // Reading happens in a short read-only transaction; the OpenAI call happens outside of it.
         Optional<Source> source = readOnlyTx.execute(status -> loadSource(message.target(), message.id()));
 
         if (source == null || source.isEmpty()) {

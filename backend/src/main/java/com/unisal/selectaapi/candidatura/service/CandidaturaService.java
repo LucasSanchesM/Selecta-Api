@@ -82,7 +82,7 @@ public class CandidaturaService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                         "Vaga não encontrada com o id: " + dto.vagaId()));
 
-        if (Boolean.FALSE.equals(vaga.getAtiva())) {
+        if (Boolean.FALSE.equals(vaga.getAtiva()) || !vaga.temPosicaoDisponivel()) {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Esta vaga não está mais recebendo candidaturas");
         }
@@ -251,6 +251,15 @@ public class CandidaturaService {
 
         if (dto.status() == StatusCandidatura.APROVADA) {
             candidatura.setEtapaAtual(EtapaProcesso.CONTRATACAO);
+
+            // consome uma posição e fecha a vaga automaticamente quando acabarem
+            Vaga vaga = candidatura.getVaga();
+            if (!vaga.temPosicaoDisponivel()) {
+                throw new BusinessException(HttpStatus.CONFLICT,
+                        "Todas as posições desta vaga já foram preenchidas");
+            }
+            vaga.registrarContratacao();
+            vagaRepository.save(vaga);
         }
 
         Candidatura salva = candidaturaRepository.save(candidatura);
