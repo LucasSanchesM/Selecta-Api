@@ -9,7 +9,7 @@ import com.unisal.selectaapi.vagas.entity.ModalidadeVaga;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 
-public record UpdateVaga(
+public record   UpdateVaga(
 
     String titulo,
 

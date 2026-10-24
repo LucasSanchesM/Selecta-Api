@@ -11,6 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.unisal.selectaapi.auth.entity.RefreshToken;
+import com.unisal.selectaapi.auth.repository.RefreshTokenRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,6 +63,9 @@ public class UserServiceTest {
 
     @InjectMocks
     private UserService userService;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Captor
     private ArgumentCaptor<EmailSendRequest> emailSendCaptor;
@@ -627,7 +633,6 @@ public class UserServiceTest {
 
             doReturn(Optional.of(user)).when(userRepository).findById(userId);
 
-
             //===== ACT =======
             userService.deleteUser(userId);
             
@@ -640,16 +645,7 @@ public class UserServiceTest {
 
             //Verica se o metodos foram chamados corretamente e quais valores seriam inseridos
             verify(verificationCodeService).removeCode(userArgumentCaptor.capture());
-            verify(userRepository).delete(userArgumentCaptor.capture());
-            var usersCaptured = userArgumentCaptor.getAllValues();
-
-
-            //Verifica se usuario inserido como parametro no remove code bate com o existente no banco
-            assertEquals(user, usersCaptured.get(0));
-
-            //Verifica se usuario inserido como parametro no delete user bate com o existente no banco
-            assertEquals(user, usersCaptured.get(1));
-
+            assertNotNull(user.getExcluidoAt());
         }
         
         @Test

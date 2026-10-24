@@ -6,6 +6,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import com.unisal.selectaapi.auth.entity.RefreshToken;
+import com.unisal.selectaapi.auth.service.RefreshTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -48,6 +51,10 @@ public class AuthServiceTest {
     @Mock
     private JwtEncoder jwtEncoder;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
+
     @Captor
     private ArgumentCaptor<String> emailArgumentCaptor;
 
@@ -56,6 +63,7 @@ public class AuthServiceTest {
 
         private User user;
         private LoginRequestDto input;
+        private RefreshToken refreshToken;
 
         @BeforeEach
         void setUp() {
@@ -67,6 +75,10 @@ public class AuthServiceTest {
             user.setPasswordHash("criptografado");
             user.setActive(true);
             user.setRole(UserRole.CANDIDATE.name());
+            refreshToken = new RefreshToken();
+            refreshToken.setRevogado(false);
+            refreshToken.setRefreshToken(UUID.randomUUID().toString());
+            refreshToken.setUser(user);
         }
 
         @Test
@@ -82,6 +94,8 @@ public class AuthServiceTest {
                                 .expiresAt(Instant.now().plusSeconds(900))
                                 .build();
             doReturn(jwtFake).when(jwtEncoder).encode(any(JwtEncoderParameters.class));
+
+            doReturn(refreshToken).when(refreshTokenService).createRefreshToken(any(User.class));
 
             //===== ACT =======
             var response = authService.loginUser(input);

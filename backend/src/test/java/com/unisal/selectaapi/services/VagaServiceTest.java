@@ -88,6 +88,7 @@ public class VagaServiceTest {
             dto = new CreateVagaDto(
                     "Desenvolvedor Backend Java",
                     new BigDecimal("5000.00"),
+                    2,
                     "Vaga para desenvolvedor backend com experiência em Spring Boot",
                     "Vale alimentação, plano de saúde, home office",
                     id,
@@ -194,6 +195,7 @@ public class VagaServiceTest {
             var input = new CreateVagaDto(
                     "Desenvolvedor Backend Java",
                     new BigDecimal("5000.00"),
+                    2,
                     "Vaga para desenvolvedor backend com experiência em Spring Boot",
                     "Vale alimentação, plano de saúde, home office",
                     dto.companyProfileId(),
@@ -233,6 +235,7 @@ public class VagaServiceTest {
             var input = new CreateVagaDto(
                     "Desenvolvedor Backend Java",
                     new BigDecimal("5000.00"),
+                    2,
                     "Vaga para desenvolvedor backend com experiência em Spring Boot",
                     "Vale alimentação, plano de saúde, home office",
                     dto.companyProfileId(),
@@ -599,6 +602,7 @@ public class VagaServiceTest {
             dto = new UpdateVaga(
                     "Desenvolvedor Backend Java Sênior",
                     new BigDecimal("12000.00"),
+                    2,
                     "Vaga atualizada para desenvolvedor backend sênior com Spring Boot e microsserviços",
                     "VR, VA, plano de saúde, plano odontológico, home office",
                     -22.7306,
