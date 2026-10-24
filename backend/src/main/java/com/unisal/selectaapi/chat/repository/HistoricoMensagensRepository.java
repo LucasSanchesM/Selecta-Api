@@ -35,4 +35,18 @@ public interface HistoricoMensagensRepository extends JpaRepository<HistoricoMen
                         AND m.candidatura.id = :candidatura_id
         """)
     Long quantidadeDeMensagensNaoLidasPeloIdDaCandidatura(@Param("candidatura_id") UUID candidaturaId, @Param("user_id") UUID userId);
+
+    /** Lado da empresa: marca só o que o candidato enviou (não as mensagens dos colegas). */
+    @Modifying
+    @Query("""
+    UPDATE HistoricoMensagens m
+       SET m.lida = true,
+           m.lidaEm = :agora
+     WHERE m.candidatura.id = :candidaturaId
+       AND m.user.id = :autorId
+       AND m.lida = false
+    """)
+    int marcarComoLidasDoAutor(@Param("candidaturaId") UUID candidaturaId,
+                               @Param("autorId") UUID autorId,
+                               @Param("agora") Instant agora);
 }

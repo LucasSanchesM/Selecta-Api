@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.unisal.selectaapi.auth.repository.RefreshTokenRepository;
+import com.unisal.selectaapi.auth.service.RefreshTokenService;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,13 +29,15 @@ public class UserService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final RabbitTemplate rabbitTemplate;
     private final VerificationCodeService verificationCodeService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public UserService(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
-            RabbitTemplate rabbitTemplate, VerificationCodeService verificationCodeService) {
+                       RabbitTemplate rabbitTemplate, VerificationCodeService verificationCodeService, RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.rabbitTemplate = rabbitTemplate;
         this.verificationCodeService = verificationCodeService;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Transactional
@@ -176,7 +180,15 @@ public class UserService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
 
         verificationCodeService.removeCode(user);
-        userRepository.delete(user);
+        user.setEmail("excluido_" + user.getId() + "@removed.invalid");
+        user.setName("Usuário removido");
+        user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setActive(false);
+        user.setExcluidoAt(Instant.now());
+        user.setGoogleSubject(null);
+        user.setLinkedinSubject(null);
+        refreshTokenRepository.revokeAllByUserId(id);
+
     }
 
     private String generateVerificationCode() {

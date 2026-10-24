@@ -10,6 +10,7 @@ import com.unisal.selectaapi.vagas.VagaRole;
 import com.unisal.selectaapi.vagas.entity.ModalidadeVaga;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,9 @@ public record CreateVagaDto(
     @NotNull(message = "O campo 'salario' é obrigatório")
     @DecimalMin(value = "0.0", inclusive = true, message = "O salário não pode ser negativo")
     BigDecimal salario,
+
+    @Min(value = 1, message = "A vaga deve ter pelo menos 1 posição disponível")
+    Integer quantidadeVagas,
 
     @NotBlank(message = "O campo 'descricao' é obrigatório")
     String descricao,

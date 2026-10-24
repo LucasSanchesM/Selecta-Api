@@ -1,7 +1,11 @@
 package com.unisal.selectaapi.config;
 
+import java.security.KeyFactory;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.List;
 
 import jakarta.servlet.http.Cookie;
@@ -40,10 +44,36 @@ import com.unisal.selectaapi.auth.oauth.OAuthSuccessHandler;
 public class SecurityConfig {
 
     @Value("${jwt.public.key}")
-    private RSAPublicKey publicKey;
+    private String publicKeyPem;
 
     @Value("${jwt.private.key}")
-    private RSAPrivateKey privateKey;
+    private String privateKeyPem;
+
+    private RSAPublicKey publicKey() {
+        try {
+            byte[] der = decodePem(publicKeyPem);
+            return (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
+        } catch (Exception e) {
+            throw new IllegalStateException("jwt.public.key inválida (esperado PEM X.509 'BEGIN PUBLIC KEY')", e);
+        }
+    }
+
+    private RSAPrivateKey privateKey() {
+        try {
+            byte[] der = decodePem(privateKeyPem);
+            return (RSAPrivateKey) KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
+        } catch (Exception e) {
+            throw new IllegalStateException("jwt.private.key inválida (esperado PEM PKCS#8 'BEGIN PRIVATE KEY')", e);
+        }
+    }
+
+    private static byte[] decodePem(String pem) {
+        String body = pem
+                .replace("\\n", "\n")
+                .replaceAll("-----(BEGIN|END) [A-Z ]+-----", "")
+                .replaceAll("\\s", "");
+        return Base64.getDecoder().decode(body);
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -86,6 +116,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("X-Recomendacao"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -116,12 +147,12 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withPublicKey(publicKey).build();
+        return NimbusJwtDecoder.withPublicKey(publicKey()).build();
     }
 
     @Bean
     public JwtEncoder jwtEncoder() {
-        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
+        JWK jwk = new RSAKey.Builder(publicKey()).privateKey(privateKey()).build();
         var jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
         return new NimbusJwtEncoder(jwks);
     }

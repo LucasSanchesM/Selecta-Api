@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.unisal.selectaapi.company.service.CompanyMemberService;
 import com.unisal.selectaapi.notificacoes.NotificacoesRole;
 import com.unisal.selectaapi.notificacoes.dtos.PublishNotificacaoDto;
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
@@ -50,6 +51,7 @@ public class CandidaturaService {
     private final CandidaturaMapper mapper;
     private final RabbitTemplate rabbitTemplate;
     private final NotificacaoService notificacaoService;
+    private final CompanyMemberService companyMemberService;
 
     public CandidaturaService(CandidaturaRepository candidaturaRepository,
                               CandidaturaHistoricoRepository historicoRepository,
@@ -59,7 +61,7 @@ public class CandidaturaService {
                               VagaRepository vagaRepository,
                               UserRepository userRepository,
                               CandidaturaMapper mapper,
-                              RabbitTemplate rabbitTemplate, NotificacaoService notificacaoService) {
+                              RabbitTemplate rabbitTemplate, NotificacaoService notificacaoService, CompanyMemberService companyMemberService) {
         this.candidaturaRepository = candidaturaRepository;
         this.historicoRepository = historicoRepository;
         this.feedbackRepository = feedbackRepository;
@@ -70,6 +72,7 @@ public class CandidaturaService {
         this.mapper = mapper;
         this.rabbitTemplate = rabbitTemplate;
         this.notificacaoService = notificacaoService;
+        this.companyMemberService = companyMemberService;
     }
 
     @Transactional
@@ -79,7 +82,7 @@ public class CandidaturaService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                         "Vaga não encontrada com o id: " + dto.vagaId()));
 
-        if (Boolean.FALSE.equals(vaga.getAtiva())) {
+        if (Boolean.FALSE.equals(vaga.getAtiva()) || !vaga.temPosicaoDisponivel()) {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Esta vaga não está mais recebendo candidaturas");
         }
@@ -156,13 +159,13 @@ public class CandidaturaService {
     // lado que a empresa usa
 
     @Transactional(readOnly = true)
-    public List<CandidaturaResponse> listarCandidaturasDaEmpresa(UUID empresaUserId,
+    public List<CandidaturaResponse> listarCandidaturasDaEmpresa(UUID empresaId,
             UUID vagaId,
             StatusCandidatura status,
             EtapaProcesso etapa,
             String candidatoNome) {
 
-        var spec = CandidaturaSpecification.withFilters(empresaUserId, vagaId, status, etapa, candidatoNome);
+        var spec = CandidaturaSpecification.withFilters(empresaId, vagaId, status, etapa, candidatoNome);
 
         return candidaturaRepository.findAll(spec)
                 .stream()
@@ -248,6 +251,15 @@ public class CandidaturaService {
 
         if (dto.status() == StatusCandidatura.APROVADA) {
             candidatura.setEtapaAtual(EtapaProcesso.CONTRATACAO);
+
+            // consome uma posição e fecha a vaga automaticamente quando acabarem
+            Vaga vaga = candidatura.getVaga();
+            if (!vaga.temPosicaoDisponivel()) {
+                throw new BusinessException(HttpStatus.CONFLICT,
+                        "Todas as posições desta vaga já foram preenchidas");
+            }
+            vaga.registrarContratacao();
+            vagaRepository.save(vaga);
         }
 
         Candidatura salva = candidaturaRepository.save(candidatura);

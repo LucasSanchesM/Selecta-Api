@@ -20,7 +20,7 @@ public class CandidaturaSpecification {
     }
 
     public static Specification<Candidatura> withFilters(
-            UUID empresaUserId,
+            UUID empresaId,
             UUID vagaId,
             StatusCandidatura status,
             EtapaProcesso etapa,
@@ -31,7 +31,7 @@ public class CandidaturaSpecification {
 
             // A empresa logada só pode ver candidaturas das próprias vagas
             predicates.add(builder.equal(
-                    root.get("vaga").get("empresa").get("user").get("id"), empresaUserId));
+                    root.get("vaga").get("empresa").get("id"), empresaId));
 
             if (vagaId != null) {
                 predicates.add(builder.equal(root.get("vaga").get("id"), vagaId));

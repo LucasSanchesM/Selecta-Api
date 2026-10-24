@@ -58,4 +58,6 @@ public interface NotificacaoRepository extends JpaRepository<Notificacao, UUID> 
                 AND n.user.id = :user_id
         """)
     Long pegarQuantasNaoLidas(@Param("user_id") UUID userID);
+
+
 }

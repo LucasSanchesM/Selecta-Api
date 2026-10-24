@@ -3,6 +3,8 @@ package com.unisal.selectaapi.chat.entity;
 import com.unisal.selectaapi.candidatura.entity.Candidatura;
 import com.unisal.selectaapi.user.entity.User;
 import jakarta.persistence.*;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,7 +23,8 @@ public class HistoricoMensagens {
     @JoinColumn(name = "candidatura_id", nullable = false)
     private Candidatura candidatura;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 

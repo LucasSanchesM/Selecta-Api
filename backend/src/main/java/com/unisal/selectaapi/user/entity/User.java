@@ -12,9 +12,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "users")
+@SQLRestriction("excluido_at IS NULL")
 public class User {
 
     @Id
@@ -52,6 +54,9 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "excluido_at")
+    private Instant excluidoAt;
+
     public User() {
     }
 
@@ -73,6 +78,14 @@ public class User {
         if (this.role == null) {
             this.role = "CANDIDATE";
         }
+    }
+
+    public Instant getExcluidoAt() {
+        return excluidoAt;
+    }
+
+    public void setExcluidoAt(Instant excluidoAt) {
+        this.excluidoAt = excluidoAt;
     }
 
     @PreUpdate

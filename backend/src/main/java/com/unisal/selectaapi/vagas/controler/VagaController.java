@@ -8,6 +8,9 @@ import java.util.UUID;
 import com.unisal.selectaapi.vagas.VagaRole;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,15 +66,29 @@ public class VagaController {
             @RequestParam(required = false) Boolean ativa,
             @RequestParam(required = false) UUID companyProfileId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size) {
+            @RequestParam(defaultValue = "12") int size,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        var vagas = vagaService.findAllWithFilters(
+        var listagem = vagaService.listarVagas(
                 titulo, categoria, modalidade,
                 salarioMin, salarioMax, cidade, estado, ativa, companyProfileId,
-                page, size
+                page, size, usuarioId(jwt)
         );
 
-        return ResponseEntity.ok(vagas);
+        return ResponseEntity.ok()
+                .header("X-Recomendacao", listagem.personalizada() ? "personalizada" : "padrao")
+                .body(listagem.vagas());
+    }
+
+    private static UUID usuarioId(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
     // LISTAR VAGAS DE UMA EMPRESA ESPECÍFICA
     @GetMapping("/empresa/{companyProfileId}")
