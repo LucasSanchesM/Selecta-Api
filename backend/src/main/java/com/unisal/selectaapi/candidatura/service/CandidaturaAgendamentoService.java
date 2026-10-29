@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.UUID;
 
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
+import com.unisal.selectaapi.vagas.services.TipoDeEtapaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +32,15 @@ public class CandidaturaAgendamentoService {
     private final UserRepository userRepository;
     private final CandidaturaMapper mapper;
     private final NotificacaoService notificacaoService;
+    private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
-    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, NotificacaoService notificacaoService) {
+    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, NotificacaoService notificacaoService, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.agendamentoRepository = agendamentoRepository;
         this.candidaturaService = candidaturaService;
         this.userRepository = userRepository;
         this.mapper = mapper;
         this.notificacaoService = notificacaoService;
+        this.tipoDeEtapaRepository = tipoDeEtapaRepository;
     }
 
     @Transactional
@@ -45,8 +50,11 @@ public class CandidaturaAgendamentoService {
         validarDados(candidatura, dto);
 
         User autor = buscarUsuario(empresaUserId);
+        var etapa = tipoDeEtapaRepository.findById(dto.etapaId())
+                                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada não existe"));
+
         CandidaturaAgendamento agendamento = new CandidaturaAgendamento(
-                candidatura, dto.etapa(), dto.titulo(), dto.mensagem(), dto.inicio(), dto.duracaoMinutos(),
+                candidatura, etapa, dto.titulo(), dto.mensagem(), dto.inicio(), dto.duracaoMinutos(),
                 dto.link(), autor.getId(), autor.getName());
 
         CandidaturaAgendamento salvo = agendamentoRepository.save(agendamento);
@@ -77,8 +85,10 @@ public class CandidaturaAgendamentoService {
         if (agendamento.getStatus().isFinalizado()) {
             throw new BusinessException(HttpStatus.CONFLICT, "Este agendamento já foi encerrado");
         }
+        var etapa = tipoDeEtapaRepository.findById(dto.etapaId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada não existe"));
 
-        agendamento.setEtapa(dto.etapa());
+        agendamento.setEtapa(etapa);
         agendamento.setTitulo(dto.titulo());
         agendamento.setMensagem(dto.mensagem());
         agendamento.setInicio(dto.inicio());
@@ -153,24 +163,17 @@ public class CandidaturaAgendamentoService {
         }
     }
 
-    private void validarDados(Candidatura candidatura, CreateAgendamentoDto dto) {
-        if (dto.etapa().isDepoisDe(candidatura.getEtapaAtual())) {
+    private TipoDeEtapa buscarEtapaValida(Candidatura candidatura, UUID etapaId) {
+        var etapa = tipoDeEtapaRepository.findById(etapaId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada não existe"));
+        int ordemEtapa = candidaturaService.ordemNaVaga(candidatura.getVaga(), etapa);
+        int ordemAtual = candidaturaService.ordemNaVaga(candidatura.getVaga(), candidatura.getEtapaAtual());
+        if (ordemEtapa > ordemAtual) {
             throw new BusinessException(HttpStatus.BAD_REQUEST,
                     "Não é possível agendar uma etapa futura. Etapa atual: "
-                            + candidatura.getEtapaAtual().getDescricao());
+                            + candidatura.getEtapaAtual().getNome());
         }
-        try {
-            URI uri = URI.create(dto.link());
-            if (!"http".equalsIgnoreCase(uri.getScheme()) && !"https".equalsIgnoreCase(uri.getScheme())
-                    || uri.getHost() == null) {
-                throw new IllegalArgumentException();
-            }
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "O link deve ser uma URL http ou https válida");
-        }
-        if (dto.inicio().isBefore(Instant.now())) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "O agendamento deve ser futuro");
-        }
+        return etapa;
     }
 
     private void validarPendente(CandidaturaAgendamento agendamento) {

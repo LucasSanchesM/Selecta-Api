@@ -9,6 +9,7 @@ import com.unisal.selectaapi.company.service.CompanyMemberService;
 import com.unisal.selectaapi.notificacoes.NotificacoesRole;
 import com.unisal.selectaapi.notificacoes.dtos.PublishNotificacaoDto;
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import com.unisal.selectaapi.vagas.entity.Vaga;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
@@ -75,8 +76,12 @@ public class CandidaturaService {
         this.companyMemberService = companyMemberService;
     }
 
+
+
     @Transactional
     public CandidaturaResponse candidatar(UUID userId, CreateCandidatura dto) {
+
+
 
         Vaga vaga = vagaRepository.findById(dto.vagaId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
@@ -388,5 +393,17 @@ public class CandidaturaService {
                     profile.setProfileImageUrl(user.getAvatarUrl());
                     return candidateProfileRepository.save(profile);
                 });
+    }
+
+    public int ordemNaVaga(Vaga vaga, TipoDeEtapa tipo) {
+        return switch (tipo.getPapelEtapa()) {
+            case INICIAL -> -1;
+            case FINAL -> Integer.MAX_VALUE;
+            case INTERMEDIARIA -> jobStageRepository
+                    .findByJobIdAndTipoDeEtapaId(vaga.getId(), tipo.getId())
+                    .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
+                            "Esta etapa não faz parte da vaga"))
+                    .getStageOrder();
+        };
     }
 }

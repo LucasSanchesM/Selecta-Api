@@ -24,8 +24,8 @@ public interface TipoDeEtapaRepository extends JpaRepository<TipoDeEtapa, UUID> 
 
     @Query("""
         SELECT t FROM TipoDeEtapa t
-            WHERE t.companyProfile.id = :company_profile_id
-                OR t.companyProfile.id IS NULL
+            WHERE (t.companyProfile.id = :company_profile_id
+                OR t.companyProfile.id IS NULL) AND t.disponibilidade = true
     """)
     List<TipoDeEtapa> findEtapasDisponiveisParaEmpresa(@Param("company_profile_id") UUID companyProfileId);
 }

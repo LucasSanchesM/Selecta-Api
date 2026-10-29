@@ -52,9 +52,13 @@ public class TipoDeEtapaService {
     }
 
     @Transactional(readOnly = true)
-    public TipoDeEtapaResponseDto pegarEtapaPeloId(UUID etapaId){
+    public TipoDeEtapaResponseDto pegarEtapaPeloId(UUID etapaId, UUID company_user_id){
+        var company = companyMemberService.pegarCompanyPeloUserId(company_user_id);
         var etapa = tipoDeEtapaRepository.findById(etapaId)
                             .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Esta Etapa não existe"));
+        if(etapa.getCompanyProfile() != null && !etapa.getCompanyProfile().getId().equals(company.getId())){
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Não existe esta etapa nos registros");
+        }
         return toDto(etapa);
     }
 
@@ -86,10 +90,66 @@ public class TipoDeEtapaService {
         return lista.stream().map(this::toDto).toList();
     }
 
+    @Transactional
+    public TipoDeEtapaResponseDto alterarEstadoEtapa(UUID etapaId, UUID company_user_id, boolean novoEstado){
+        var companyId = companyMemberService.pegarCompanyPeloUserId(company_user_id).getId();
+        var etapa = tipoDeEtapaRepository.findById(etapaId)
+                .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Esta Etapa não existe"));
+        if(etapa.isSystem()){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Etapas do sistema não podem ser alteradas");
+        }
+        if(etapa.getCompanyProfile() != null && !etapa.getCompanyProfile().getId().equals(companyId)){
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Não existe esta etapa nos registros");
+        }
+        if(etapa.isDisponibilidade() == novoEstado && !novoEstado){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Esta etapa já está desabilitada");
+        }
+        if(etapa.isDisponibilidade() == novoEstado && novoEstado){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Esta etapa já está habilitada");
+        }
+        etapa.setDisponibilidade(novoEstado);
+        return toDto(etapa);
+    }
+
+    @Transactional
+    public void deletarTipoDeEtapa(UUID etapaId, UUID company_user_id){
+        var companyId = companyMemberService.pegarCompanyPeloUserId(company_user_id).getId();
+        var etapa = tipoDeEtapaRepository.findById(etapaId)
+                .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Esta Etapa não existe"));
+        if(etapa.isSystem()){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Etapas do sistema não podem ser deletadas");
+        }
+        if(etapa.getCompanyProfile() != null && !etapa.getCompanyProfile().getId().equals(companyId)){
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Não existe esta etapa nos registros");
+        }
+        if(etapa.isJaUtilizada()){
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Etapas já utilizadas não podem ser deletadas");
+        }
+        tipoDeEtapaRepository.delete(etapa);
+    }
+
+    @Transactional
+    public void marcarEtapaComoJaUtilizada(UUID etapaId, UUID company_user_id){
+        var companyId = companyMemberService.pegarCompanyPeloUserId(company_user_id).getId();
+        var etapa = tipoDeEtapaRepository.findById(etapaId)
+                .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Esta Etapa não existe"));
+        if(etapa.getCompanyProfile() != null && !etapa.getCompanyProfile().getId().equals(companyId)){
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Não existe esta etapa nos registros");
+        }
+        if(!etapa.isDisponibilidade()){
+            throw new BusinessException(HttpStatus.CONFLICT, "Esta etapa está desabilitada");
+        }
+        etapa.marcarComoUtilizada();
+    }
+
     private TipoDeEtapaResponseDto toDto(TipoDeEtapa etapa){
         return new TipoDeEtapaResponseDto(  etapa.getId(),
                                             etapa.getNome(),
                                             etapa.isSystem() ? null :etapa.getCompanyProfile().getId(),
-                                            etapa.isSystem());
+                                            etapa.isSystem(),
+                                            etapa.isJaUtilizada(),
+                                            etapa.isDisponibilidade(),
+                                            etapa.isSystem() ? null : etapa.getCreated_at()
+                );
     }
 }

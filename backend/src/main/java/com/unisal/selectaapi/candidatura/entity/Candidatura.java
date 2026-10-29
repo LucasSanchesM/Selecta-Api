@@ -7,25 +7,10 @@ import java.util.List;
 import java.util.UUID;
 
 import com.unisal.selectaapi.candidate.entity.CandidateProfile;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import com.unisal.selectaapi.vagas.entity.Vaga;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "applications", uniqueConstraints = @UniqueConstraint(name = "uk_application_vaga_candidato", columnNames = {
@@ -45,9 +30,9 @@ public class Candidatura {
     @JoinColumn(name = "candidate_profile_id", nullable = false)
     private CandidateProfile candidato;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private EtapaProcesso etapaAtual;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "etapa_atual" , nullable = false)
+    private TipoDeEtapa etapaAtual;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -86,12 +71,12 @@ public class Candidatura {
     public Candidatura() {
     }
 
-    public Candidatura(Vaga vaga, CandidateProfile candidato, String cartaApresentacao, String curriculoUrl) {
+    public Candidatura(Vaga vaga, CandidateProfile candidato, String cartaApresentacao, String curriculoUrl, TipoDeEtapa etapaAtual) {
         this.vaga = vaga;
         this.candidato = candidato;
         this.cartaApresentacao = cartaApresentacao;
         this.curriculoUrl = curriculoUrl;
-        this.etapaAtual = EtapaProcesso.INSCRICAO;
+        this.etapaAtual = etapaAtual;
         this.status = StatusCandidatura.EM_ANDAMENTO;
     }
 
@@ -100,9 +85,6 @@ public class Candidatura {
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
 
-        if (this.etapaAtual == null) {
-            this.etapaAtual = EtapaProcesso.INSCRICAO;
-        }
         if (this.status == null) {
             this.status = StatusCandidatura.EM_ANDAMENTO;
         }
@@ -145,11 +127,11 @@ public class Candidatura {
         this.candidato = candidato;
     }
 
-    public EtapaProcesso getEtapaAtual() {
+    public TipoDeEtapa getEtapaAtual() {
         return etapaAtual;
     }
 
-    public void setEtapaAtual(EtapaProcesso etapaAtual) {
+    public void setEtapaAtual(TipoDeEtapa etapaAtual) {
         this.etapaAtual = etapaAtual;
     }
 
