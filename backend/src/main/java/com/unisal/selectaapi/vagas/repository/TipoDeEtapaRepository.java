@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -28,4 +29,6 @@ public interface TipoDeEtapaRepository extends JpaRepository<TipoDeEtapa, UUID> 
                 OR t.companyProfile.id IS NULL) AND t.disponibilidade = true
     """)
     List<TipoDeEtapa> findEtapasDisponiveisParaEmpresa(@Param("company_profile_id") UUID companyProfileId);
+
+    Optional<TipoDeEtapa> findByCodigoAndCompanyProfileIsNull(String codigo);
 }

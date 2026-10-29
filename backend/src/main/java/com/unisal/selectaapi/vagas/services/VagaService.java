@@ -8,6 +8,8 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -53,15 +55,17 @@ public class VagaService {
     private final ApplicationEventPublisher eventPublisher;
     private final VagaRecomendacaoService recomendacaoService;
     private final TransactionTemplate readOnlyTx;
+    private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
     public VagaService(VagaRepository vagaRepository, CompanyProfileRepository companyProfileRepository,
-            GeoCodingService geoCodingService, ApplicationEventPublisher eventPublisher,
-            VagaRecomendacaoService recomendacaoService, PlatformTransactionManager transactionManager) {
+                       GeoCodingService geoCodingService, ApplicationEventPublisher eventPublisher,
+                       VagaRecomendacaoService recomendacaoService, PlatformTransactionManager transactionManager, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.vagaRepository = vagaRepository;
         this.companyProfileRepository = companyProfileRepository;
         this.geoCodingService = geoCodingService;
         this.eventPublisher = eventPublisher;
         this.recomendacaoService = recomendacaoService;
+        this.tipoDeEtapaRepository = tipoDeEtapaRepository;
         if (transactionManager != null) {
             this.readOnlyTx = new TransactionTemplate(transactionManager);
             this.readOnlyTx.setReadOnly(true);
@@ -97,7 +101,7 @@ public class VagaService {
         vaga.setModalidade(dto.modalidade());
         vaga.setAtiva(true);
 
-        configurarEtapas(vaga, dto.etapas());
+        configurarEtapas(vaga, dto.etapasId());
 
         var savedVaga = vagaRepository.save(vaga);
         solicitarEmbedding(savedVaga);
@@ -312,18 +316,12 @@ public class VagaService {
         CompanyProfile empresa = vaga.getEmpresa();
         List<VagaEtapa> etapas = vaga.getEtapas();
 
-        List<EtapaVagaResponse> etapasResponse = etapas.isEmpty()
-            ? EtapaProcesso.etapasConfiguraveisPadrao().stream()
+        List<EtapaVagaResponse> etapasResponse = etapas.stream()
                 .map(etapa -> new EtapaVagaResponse(
-                    etapa,
-                    etapa.getDescricao(),
-                    EtapaProcesso.etapasConfiguraveisPadrao().indexOf(etapa) + 1))
-                .toList()
-            : etapas.stream()
-                .map(etapa -> new EtapaVagaResponse(
-                    etapa.getEtapa(),
-                    etapa.getEtapa().getDescricao(),
-                    etapa.getOrdem()))
+                        etapa.getEtapa().getId(),
+                        etapa.getEtapa().getNome(),
+                        etapa.getOrdem()
+                ))
                 .toList();
 
         return new VagaResponse(
@@ -352,21 +350,91 @@ public class VagaService {
         );
     }
 
-    private void configurarEtapas(Vaga vaga, List<EtapaProcesso> etapasInformadas) {
-            List<EtapaProcesso> etapas = etapasInformadas == null || etapasInformadas.isEmpty()
-                ? EtapaProcesso.etapasConfiguraveisPadrao()
-                : etapasInformadas;
+    private void configurarEtapas(Vaga vaga, List<UUID> etapasId) {
 
-            if (etapas.stream().anyMatch(etapa -> etapa == null)
-                || etapas.contains(EtapaProcesso.INSCRICAO)
-                || etapas.contains(EtapaProcesso.CONTRATACAO)
-                || new HashSet<>(etapas).size() != etapas.size()) {
-                throw new BusinessException(HttpStatus.BAD_REQUEST,
-                    "A vaga deve possuir etapas configuráveis distintas, sem INSCRICAO ou CONTRATACAO");
+        var etapaInicial = tipoDeEtapaRepository
+                .findByCodigoAndCompanyProfileIsNull("INSCRICAO")
+                .orElseThrow(() -> new IllegalStateException(
+                        "Etapa inicial INSCRICAO não cadastrada"
+                ));
+
+        var etapaFinal = tipoDeEtapaRepository
+                .findByCodigoAndCompanyProfileIsNull("ENCERRADA")
+                .orElseThrow(() -> new IllegalStateException(
+                        "Etapa final ENCERRADA não cadastrada"
+                ));
+
+        List<TipoDeEtapa> intermediarias;
+
+        if (etapasId == null || etapasId.isEmpty()) {
+            intermediarias = tipoDeEtapaRepository.findAllSystemEtapas()
+                    .stream()
+                    .filter(etapa -> !"INSCRICAO".equals(etapa.getCodigo()))
+                    .filter(etapa -> !"ENCERRADA".equals(etapa.getCodigo()))
+                    .sorted(java.util.Comparator.comparingInt(
+                            etapa -> ordemEtapaSistema(etapa.getCodigo())
+                    ))
+                    .toList();
+        } else {
+            if (new HashSet<>(etapasId).size() != etapasId.size()) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "Não é permitido informar etapas duplicadas"
+                );
             }
 
-            vaga.setEtapas(etapas.stream()
-                .map(etapa -> new VagaEtapa(vaga, etapa, etapas.indexOf(etapa) + 1))
-                .toList());
+            intermediarias = tipoDeEtapaRepository.findAllById(etapasId);
+
+            if (intermediarias.size() != new HashSet<>(etapasId).size()) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "Uma ou mais etapas informadas não existem"
+                );
             }
+
+            var etapasPorId = intermediarias.stream()
+                    .collect(Collectors.toMap(
+                            TipoDeEtapa::getId,
+                            Function.identity()
+                    ));
+
+            intermediarias = etapasId.stream()
+                    .map(etapasPorId::get)
+                    .filter(etapa -> !"INSCRICAO".equals(etapa.getCodigo()))
+                    .filter(etapa -> !"ENCERRADA".equals(etapa.getCodigo()))
+                    .toList();
+        }
+
+        var etapasOrdenadas = new java.util.ArrayList<TipoDeEtapa>();
+        etapasOrdenadas.add(etapaInicial);
+        etapasOrdenadas.addAll(intermediarias);
+        etapasOrdenadas.add(etapaFinal);
+
+        vaga.setEtapas(
+                java.util.stream.IntStream.range(0, etapasOrdenadas.size())
+                        .mapToObj(i -> new VagaEtapa(
+                                vaga,
+                                etapasOrdenadas.get(i),
+                                i + 1
+                        ))
+                        .toList()
+        );
+    }
+
+    private int ordemEtapaSistema(String codigo) {
+        return switch (codigo) {
+            case "TRIAGEM" -> 1;
+            case "ENTREVISTA_RH" -> 2;
+            case "TESTE_TECNICO" -> 3;
+            case "ENTREVISTA_TECNICA" -> 4;
+            case "PROPOSTA" -> 5;
+            case "INSCRICAO", "ENCERRADA" ->
+                    throw new IllegalArgumentException(
+                            "Etapa obrigatória não deve ser ordenada como intermediária: " + codigo
+                    );
+            default -> throw new IllegalStateException(
+                    "Ordem padrão não definida para a etapa: " + codigo
+            );
+        };
+    }
 }

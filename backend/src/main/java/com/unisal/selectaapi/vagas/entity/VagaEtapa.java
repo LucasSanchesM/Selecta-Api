@@ -19,7 +19,7 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "job_stages", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_job_stage_type", columnNames = { "job_id", "stage" }),
+        @UniqueConstraint(name = "uk_job_stage_type", columnNames = { "job_id", "etapa_id" }),
         @UniqueConstraint(name = "uk_job_stage_order", columnNames = { "job_id", "stage_order" })
 })
 public class VagaEtapa {
@@ -32,9 +32,9 @@ public class VagaEtapa {
     @JoinColumn(name = "job_id", nullable = false)
     private Vaga vaga;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "stage", nullable = false, length = 40)
-    private EtapaProcesso etapa;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "etapa", nullable = false)
+    private TipoDeEtapa etapa;
 
     @Column(name = "stage_order", nullable = false)
     private Integer ordem;
@@ -42,7 +42,7 @@ public class VagaEtapa {
     public VagaEtapa() {
     }
 
-    public VagaEtapa(Vaga vaga, EtapaProcesso etapa, int ordem) {
+    public VagaEtapa(Vaga vaga, TipoDeEtapa etapa, int ordem) {
         this.vaga = vaga;
         this.etapa = etapa;
         this.ordem = ordem;
@@ -56,7 +56,7 @@ public class VagaEtapa {
         return vaga;
     }
 
-    public EtapaProcesso getEtapa() {
+    public TipoDeEtapa getEtapa() {
         return etapa;
     }
 

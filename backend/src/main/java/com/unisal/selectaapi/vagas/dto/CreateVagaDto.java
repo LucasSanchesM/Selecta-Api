@@ -49,6 +49,6 @@ public record CreateVagaDto(
     Double longitude,
 
     @Size(max = 5, message = "A vaga pode ter no máximo 5 etapas configuráveis")
-    List<EtapaProcesso> etapas
+    List<UUID> etapasId
 
 ) {}

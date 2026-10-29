@@ -3,6 +3,8 @@ package com.unisal.selectaapi.config;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +15,6 @@ import com.unisal.selectaapi.company.entity.CompanyProfile;
 import com.unisal.selectaapi.company.repository.CompanyProfileRepository;
 import com.unisal.selectaapi.candidate.entity.CandidateProfile;
 import com.unisal.selectaapi.candidate.repository.CandidateProfileRepository;
-import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
 import com.unisal.selectaapi.user.UserRepository;
 import com.unisal.selectaapi.user.UserRole;
 import com.unisal.selectaapi.user.entity.User;
@@ -26,6 +27,19 @@ import com.unisal.selectaapi.vagas.entity.VagaEtapa;
 @Configuration
 public class DevelopmentSeedConfig {
 
+    private TipoDeEtapa systemStage(
+            TipoDeEtapaRepository repository,
+            String codigo,
+            String nome) {
+
+        return repository.findByCodigoAndCompanyProfileIsNull(codigo)
+                .orElseGet(() -> {
+                    TipoDeEtapa etapa = new TipoDeEtapa(null, nome);
+                    etapa.setCodigo(codigo);
+                    return repository.save(etapa);
+                });
+    }
+
     @Bean
     CommandLineRunner developmentSeed(
             @Value("${app.seed.enabled:false}") boolean seedEnabled,
@@ -33,12 +47,31 @@ public class DevelopmentSeedConfig {
             CompanyProfileRepository companyProfileRepository,
             CandidateProfileRepository candidateProfileRepository,
             VagaRepository vagaRepository,
+            TipoDeEtapaRepository tipoDeEtapaRepository,
             BCryptPasswordEncoder passwordEncoder) {
 
         return args -> {
             if (!seedEnabled) {
                 return;
             }
+
+            TipoDeEtapa inscricao = systemStage(tipoDeEtapaRepository, "INSCRICAO", "Inscrição");
+            TipoDeEtapa triagem = systemStage(tipoDeEtapaRepository, "TRIAGEM", "Triagem");
+            TipoDeEtapa entrevistaRh = systemStage(tipoDeEtapaRepository, "ENTREVISTA_RH", "Entrevista com RH");
+            TipoDeEtapa testeTecnico = systemStage(tipoDeEtapaRepository, "TESTE_TECNICO", "Teste técnico");
+            TipoDeEtapa entrevistaTecnica = systemStage(tipoDeEtapaRepository, "ENTREVISTA_TECNICA", "Entrevista técnica");
+            TipoDeEtapa proposta = systemStage(tipoDeEtapaRepository, "PROPOSTA", "Proposta");
+            TipoDeEtapa encerrada = systemStage(tipoDeEtapaRepository, "ENCERRADA", "Encerrada");
+
+            List<TipoDeEtapa> etapasPadrao = List.of(
+                    inscricao,
+                    triagem,
+                    entrevistaRh,
+                    testeTecnico,
+                    entrevistaTecnica,
+                    proposta,
+                    encerrada
+            );
 
             CompanyProfile techNova = company(
                     userRepository, companyProfileRepository, passwordEncoder,
@@ -102,8 +135,7 @@ public class DevelopmentSeedConfig {
                     "Vale refeicao, plano de saude, trabalho remoto e horario flexivel.",
                     "Sao Paulo", "SP", -23.5505, -46.6333,
                     VagaRole.DESENVOLVIMENTO_SOFTWARE, ModalidadeVaga.REMOTO,
-                    List.of(EtapaProcesso.TRIAGEM, EtapaProcesso.TESTE_TECNICO,
-                            EtapaProcesso.ENTREVISTA_TECNICA, EtapaProcesso.PROPOSTA));
+                    List.of(inscricao, triagem, testeTecnico, entrevistaTecnica, proposta, encerrada));
 
             createJobIfAbsent(vagaRepository, techNova, "Pessoa Desenvolvedora Frontend",
                     new BigDecimal("6500.00"),
@@ -111,8 +143,8 @@ public class DevelopmentSeedConfig {
                     "Vale refeicao, auxilio home office e plano odontologico.",
                     "Sao Paulo", "SP", -23.5505, -46.6333,
                     VagaRole.DESENVOLVIMENTO_SOFTWARE, ModalidadeVaga.HIBRIDO,
-                    List.of(EtapaProcesso.TRIAGEM, EtapaProcesso.ENTREVISTA_RH, EtapaProcesso.TESTE_TECNICO,
-                            EtapaProcesso.PROPOSTA));
+                    List.of(inscricao, triagem, entrevistaRh, testeTecnico, proposta, encerrada));
+
 
             createJobIfAbsent(vagaRepository, ponteVerde, "Analista de Projetos",
                     new BigDecimal("5800.00"),
@@ -120,8 +152,8 @@ public class DevelopmentSeedConfig {
                     "Vale alimentacao, plano de saude e programa de desenvolvimento.",
                     "Campinas", "SP", -22.9056, -47.0608,
                     VagaRole.GESTAO_PROJETOS, ModalidadeVaga.HIBRIDO,
-                    List.of(EtapaProcesso.TRIAGEM, EtapaProcesso.ENTREVISTA_RH, EtapaProcesso.ENTREVISTA_TECNICA,
-                            EtapaProcesso.PROPOSTA));
+                    List.of(inscricao, triagem, entrevistaRh, testeTecnico, proposta, encerrada));
+
 
             createJobIfAbsent(vagaRepository, ponteVerde, "Estagio em Recursos Humanos",
                     new BigDecimal("1800.00"),
@@ -129,10 +161,17 @@ public class DevelopmentSeedConfig {
                     "Bolsa auxilio, vale transporte e mentoria.",
                     "Campinas", "SP", -22.9056, -47.0608,
                     VagaRole.RECURSOS_HUMANOS, ModalidadeVaga.PRESENCIAL,
-                    List.of(EtapaProcesso.TRIAGEM, EtapaProcesso.ENTREVISTA_RH, EtapaProcesso.PROPOSTA));
+                    List.of(inscricao, triagem, entrevistaRh, proposta, encerrada));
 
-            createGeneratedJobs(vagaRepository, List.of(techNova, ponteVerde, horizonteSaude, rotaCerta,
-                    casaClara, aguaViva, ponteSul, farolEdu, saborDaTerra, novaMente));
+            createGeneratedJobs(
+                    vagaRepository,
+                    List.of(
+                            techNova, ponteVerde, horizonteSaude, rotaCerta,
+                            casaClara, aguaViva, ponteSul, farolEdu,
+                            saborDaTerra, novaMente
+                    ),
+                    etapasPadrao
+            );
         };
     }
 
@@ -234,7 +273,7 @@ public class DevelopmentSeedConfig {
                 + companyName.replace(" ", "%20");
     }
 
-    private void createGeneratedJobs(VagaRepository vagaRepository, List<CompanyProfile> companies) {
+    private void createGeneratedJobs(VagaRepository vagaRepository, List<CompanyProfile> companies, List<TipoDeEtapa> etapasPadrao) {
         String[] titles = {
                 "Desenvolvedor(a) Full Stack", "Analista de Dados", "Engenheiro(a) de Software",
                 "Especialista em Cloud", "Analista de Seguranca da Informacao", "Designer UX/UI",
@@ -288,8 +327,8 @@ public class DevelopmentSeedConfig {
                     "Atuar em um time colaborativo, contribuindo para resultados e melhoria continua.",
                     "Vale refeicao, plano de saude e horario flexivel.", city, "SP", latitude, longitude,
                     categories[index], modality,
-                    List.of(EtapaProcesso.TRIAGEM, EtapaProcesso.ENTREVISTA_RH,
-                            EtapaProcesso.ENTREVISTA_TECNICA, EtapaProcesso.PROPOSTA));
+                    etapasPadrao);
+
         }
     }
 
@@ -306,7 +345,7 @@ public class DevelopmentSeedConfig {
             Double longitude,
             VagaRole category,
             ModalidadeVaga modality,
-            List<EtapaProcesso> etapas) {
+            List<TipoDeEtapa> etapas) {
 
         Vaga existingJob = vagaRepository.findByEmpresaId(company.getId()).stream()
                 .filter(job -> job.getTitulo().equals(title))

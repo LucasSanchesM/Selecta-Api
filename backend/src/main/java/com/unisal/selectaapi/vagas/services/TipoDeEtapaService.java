@@ -18,6 +18,11 @@ import java.util.UUID;
 public class TipoDeEtapaService {
     private final TipoDeEtapaRepository tipoDeEtapaRepository;
     private final CompanyMemberService companyMemberService;
+    private static final List<String> ORDEM_ETAPAS_SISTEMA = List.of(
+            "TRIAGEM", "ENTREVISTA_RH", "TESTE_TECNICO", "ENTREVISTA_TECNICA", "PROPOSTA"
+    );
+    public static final String ETAPA_INICIAL = "INSCRICAO";
+    public static final String ETAPA_FINAL = "ENCERRADA";
 
     public TipoDeEtapaService(TipoDeEtapaRepository tipoDeEtapaRepository, CompanyMemberService companyMemberService) {
         this.tipoDeEtapaRepository = tipoDeEtapaRepository;
@@ -46,10 +51,26 @@ public class TipoDeEtapaService {
     }
 
     @Transactional(readOnly = true)
-    public List<TipoDeEtapaResponseDto> listarEtapasDoSistema(){
-        return tipoDeEtapaRepository.findAllSystemEtapas().stream()
-                                        .map(this::toDto).toList();
+    public List<TipoDeEtapaResponseDto> listarEtapasDoSistema() {
+        var etapas = tipoDeEtapaRepository.findAllSystemEtapas();
+
+        var ordem = new java.util.HashMap<String, Integer>();
+        ordem.put(ETAPA_INICIAL, -1);
+
+        for (int i = 0; i < ORDEM_ETAPAS_SISTEMA.size(); i++) {
+            ordem.put(ORDEM_ETAPAS_SISTEMA.get(i), i);
+        }
+
+        ordem.put(ETAPA_FINAL, ORDEM_ETAPAS_SISTEMA.size());
+
+        return etapas.stream()
+                .sorted(java.util.Comparator.comparingInt(
+                        etapa -> ordem.getOrDefault(etapa.getCodigo(), Integer.MAX_VALUE)
+                ))
+                .map(this::toDto)
+                .toList();
     }
+
 
     @Transactional(readOnly = true)
     public TipoDeEtapaResponseDto pegarEtapaPeloId(UUID etapaId, UUID company_user_id){

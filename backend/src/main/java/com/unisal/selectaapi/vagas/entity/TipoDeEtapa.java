@@ -21,9 +21,8 @@
         @JoinColumn(name = "company_profile_id")
         private CompanyProfile companyProfile;
 
-        @Enumerated(EnumType.STRING)
-        @Column(name = "etapa_papel", nullable = false)
-        private PapelEtapa papelEtapa = PapelEtapa.INTERMEDIARIA;
+        @Column(name = "codigo")
+        private String codigo;
 
         @Column(name = "ja_utilizada", nullable = false)
         private boolean jaUtilizada = false;
@@ -50,8 +49,17 @@
             return jaUtilizada;
         }
 
-        public PapelEtapa getPapelEtapa() {
-            return papelEtapa;
+        public void setCodigo(String codigo) {
+            if (!isSystem() && codigo != null) {
+                throw new IllegalStateException(
+                        "Etapas personalizadas não podem possuir código"
+                );
+            }
+            this.codigo = codigo;
+        }
+
+        public String getCodigo() {
+            return codigo;
         }
 
         public void marcarComoUtilizada() {

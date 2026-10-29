@@ -11,6 +11,9 @@ import com.unisal.selectaapi.notificacoes.dtos.PublishNotificacaoDto;
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
 import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import com.unisal.selectaapi.vagas.entity.Vaga;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
+import com.unisal.selectaapi.vagas.services.TipoDeEtapaService;
+import com.unisal.selectaapi.vagas.services.VagaService;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -98,14 +101,15 @@ public class CandidaturaService {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Você já se candidatou para esta vaga");
         }
+        var etapaInicial = vaga.getEtapas().getFirst().getEtapa();
 
-        var candidatura = new Candidatura(vaga, candidato, dto.cartaApresentacao(), dto.curriculoUrl());
+        var candidatura = new Candidatura(vaga, candidato, dto.cartaApresentacao(), dto.curriculoUrl(), etapaInicial);
         var salva = candidaturaRepository.save(candidatura);
 
         registrarHistorico(
                 salva,
                 null,
-                EtapaProcesso.INSCRICAO,
+                etapaInicial,
                 null,
                 StatusCandidatura.EM_ANDAMENTO,
                 "Candidatura enviada pelo candidato",
@@ -193,8 +197,8 @@ public class CandidaturaService {
                     "Não é possível alterar a etapa de uma candidatura finalizada");
         }
 
-        EtapaProcesso etapaAnterior = candidatura.getEtapaAtual();
-        List<EtapaProcesso> fluxo = candidatura.getVaga().getEtapas().stream()
+        TipoDeEtapa etapaAnterior = candidatura.getEtapaAtual();
+        List<TipoDeEtapa> fluxo = candidatura.getVaga().getEtapas().stream()
             .map(etapa -> etapa.getEtapa())
             .toList();
 
@@ -350,8 +354,8 @@ public class CandidaturaService {
     }
 
     private void registrarHistorico(Candidatura candidatura,
-            EtapaProcesso etapaAnterior,
-            EtapaProcesso etapaNova,
+            TipoDeEtapa etapaAnterior,
+            TipoDeEtapa etapaNova,
             StatusCandidatura statusAnterior,
             StatusCandidatura statusNovo,
             String observacao,
