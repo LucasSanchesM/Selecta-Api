@@ -6,12 +6,13 @@ import java.util.UUID;
 
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
 import com.unisal.selectaapi.candidatura.entity.StatusCandidatura;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 
 public record HistoricoResponse(
 
         UUID id,
-        EtapaProcesso etapaAnterior,
-        EtapaProcesso etapaNova,
+        TipoDeEtapa etapaAnterior,
+        TipoDeEtapa etapaNova,
         String etapaNovaDescricao,
         StatusCandidatura statusAnterior,
         StatusCandidatura statusNovo,

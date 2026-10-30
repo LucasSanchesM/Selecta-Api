@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.unisal.selectaapi.company.service.CompanyMemberService;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -63,13 +64,13 @@ public class CandidaturaEmpresaController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) UUID vagaId,
             @RequestParam(required = false) StatusCandidatura status,
-            @RequestParam(required = false) EtapaProcesso etapa,
+            @RequestParam(required = false) UUID etapaId,
             @RequestParam(required = false) String candidatoNome) {
 
         UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getId();
 
         var candidaturas = candidaturaService.listarCandidaturasDaEmpresa(
-                empresaUserId, vagaId, status, etapa, candidatoNome);
+                empresaUserId, vagaId, status, etapaId, candidatoNome);
 
         return ResponseEntity.ok(candidaturas);
     }
@@ -127,11 +128,11 @@ public class CandidaturaEmpresaController {
     public ResponseEntity<List<FeedbackResponse>> listarFeedbacks(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
-            @RequestParam(required = false) EtapaProcesso etapa) {
+            @RequestParam(required = false) UUID etapaId) {
 
         UUID empresaUserId = companyMemberService.pegarCompanyPeloUserId(UUID.fromString(jwt.getSubject())).getUser().getId();
 
-        return ResponseEntity.ok(feedbackService.listarComoEmpresa(empresaUserId, id, etapa));
+        return ResponseEntity.ok(feedbackService.listarComoEmpresa(empresaUserId, id, etapaId));
     }
 
     @PostMapping("/{id}/agendamentos")

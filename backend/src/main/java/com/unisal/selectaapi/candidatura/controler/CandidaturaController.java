@@ -85,11 +85,11 @@ public class CandidaturaController {
     public ResponseEntity<List<FeedbackResponse>> listarFeedbacks(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
-            @RequestParam(required = false) EtapaProcesso etapa) {
+            @RequestParam(required = false) UUID etapaId) {
 
         UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.ok(feedbackService.listarComoCandidato(userId, id, etapa));
+        return ResponseEntity.ok(feedbackService.listarComoCandidato(userId, id, etapaId));
     }
 
     @GetMapping("/{id}/agendamentos")

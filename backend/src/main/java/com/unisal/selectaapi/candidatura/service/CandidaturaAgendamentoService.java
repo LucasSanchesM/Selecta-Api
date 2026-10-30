@@ -1,15 +1,12 @@
 package com.unisal.selectaapi.candidatura.service;
 
-import java.net.URI;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
 import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.entity.VagaEtapa;
 import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
-import com.unisal.selectaapi.vagas.services.TipoDeEtapaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,15 +28,13 @@ public class CandidaturaAgendamentoService {
     private final CandidaturaService candidaturaService;
     private final UserRepository userRepository;
     private final CandidaturaMapper mapper;
-    private final NotificacaoService notificacaoService;
     private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
-    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, NotificacaoService notificacaoService, TipoDeEtapaRepository tipoDeEtapaRepository) {
+    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.agendamentoRepository = agendamentoRepository;
         this.candidaturaService = candidaturaService;
         this.userRepository = userRepository;
         this.mapper = mapper;
-        this.notificacaoService = notificacaoService;
         this.tipoDeEtapaRepository = tipoDeEtapaRepository;
     }
 
@@ -47,11 +42,9 @@ public class CandidaturaAgendamentoService {
     public AgendamentoResponse criar(UUID empresaUserId, UUID candidaturaId, CreateAgendamentoDto dto) {
         Candidatura candidatura = candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
         validarCandidaturaAtiva(candidatura);
-        validarDados(candidatura, dto);
 
         User autor = buscarUsuario(empresaUserId);
-        var etapa = tipoDeEtapaRepository.findById(dto.etapaId())
-                                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada não existe"));
+        var etapa = buscarEtapaValida(candidatura, dto.etapaId());
 
         CandidaturaAgendamento agendamento = new CandidaturaAgendamento(
                 candidatura, etapa, dto.titulo(), dto.mensagem(), dto.inicio(), dto.duracaoMinutos(),
@@ -79,14 +72,12 @@ public class CandidaturaAgendamentoService {
             CreateAgendamentoDto dto) {
         Candidatura candidatura = candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
         validarCandidaturaAtiva(candidatura);
-        validarDados(candidatura, dto);
 
         CandidaturaAgendamento agendamento = buscar(candidaturaId, agendamentoId);
         if (agendamento.getStatus().isFinalizado()) {
             throw new BusinessException(HttpStatus.CONFLICT, "Este agendamento já foi encerrado");
         }
-        var etapa = tipoDeEtapaRepository.findById(dto.etapaId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada não existe"));
+        var etapa = buscarEtapaValida(candidatura, dto.etapaId());
 
         agendamento.setEtapa(etapa);
         agendamento.setTitulo(dto.titulo());
@@ -165,14 +156,30 @@ public class CandidaturaAgendamentoService {
 
     private TipoDeEtapa buscarEtapaValida(Candidatura candidatura, UUID etapaId) {
         var etapa = tipoDeEtapaRepository.findById(etapaId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada não existe"));
-        int ordemEtapa = candidaturaService.ordemNaVaga(candidatura.getVaga(), etapa);
-        int ordemAtual = candidaturaService.ordemNaVaga(candidatura.getVaga(), candidatura.getEtapaAtual());
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "A etapa informada não existe"));
+
+        var etapas = candidatura.getVaga().getEtapas();
+
+        int ordemEtapa = etapas.stream()
+                .filter(ve -> ve.getEtapa().getId().equals(etapa.getId()))
+                .mapToInt(VagaEtapa::getOrdem)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST, "A etapa informada não pertence a esta vaga"));
+
+        int ordemAtual = etapas.stream()
+                .filter(ve -> ve.getEtapa().getId().equals(candidatura.getEtapaAtual().getId()))
+                .mapToInt(VagaEtapa::getOrdem)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST, "A etapa atual não está configurada nesta vaga"));
+
         if (ordemEtapa > ordemAtual) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST,
-                    "Não é possível agendar uma etapa futura. Etapa atual: "
-                            + candidatura.getEtapaAtual().getNome());
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST, "Não é possível agendar uma etapa futura");
         }
+
         return etapa;
     }
 

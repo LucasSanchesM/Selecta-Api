@@ -8,6 +8,7 @@ import java.util.UUID;
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
 import com.unisal.selectaapi.candidatura.entity.StatusCandidatura;
 import com.unisal.selectaapi.vagas.dto.EtapaVagaResponse;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 
 public record CandidaturaResponse(
 
@@ -31,7 +32,7 @@ public record CandidaturaResponse(
                 String candidatoImagemUrl,
 
                 // Situação do processo
-                EtapaProcesso etapaAtual,
+                UUID IdEtapaAtual,
                 String etapaAtualDescricao,
                 List<EtapaVagaResponse> etapasVaga,
                 StatusCandidatura status,

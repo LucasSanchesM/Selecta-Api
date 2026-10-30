@@ -3,6 +3,9 @@ package com.unisal.selectaapi.candidatura.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.entity.VagaEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,34 +27,34 @@ public class CandidaturaFeedbackService {
     private final CandidaturaService candidaturaService;
     private final UserRepository userRepository;
     private final CandidaturaMapper mapper;
+    private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
     public CandidaturaFeedbackService(CandidaturaFeedbackRepository feedbackRepository,
-            CandidaturaService candidaturaService,
-            UserRepository userRepository,
-            CandidaturaMapper mapper) {
+                                      CandidaturaService candidaturaService,
+                                      UserRepository userRepository,
+                                      CandidaturaMapper mapper, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.feedbackRepository = feedbackRepository;
         this.candidaturaService = candidaturaService;
         this.userRepository = userRepository;
         this.mapper = mapper;
+        this.tipoDeEtapaRepository = tipoDeEtapaRepository;
     }
 
     @Transactional
     public FeedbackResponse criar(UUID empresaUserId, UUID candidaturaId, CreateFeedbackDto dto) {
         Candidatura candidatura = candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
+        var etapaInformada = tipoDeEtapaRepository.findByIdDisponivelParaEmpresa(dto.etapaId(), empresaUserId)
+                                                    .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Etapa informada nao existe"));
 
         // Não faz sentido dar feedback de uma etapa que o processo ainda não alcançou
-        if (dto.etapa().isDepoisDe(candidatura.getEtapaAtual())) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST,
-                    "Não é possível registrar feedback de uma etapa futura. Etapa atual: "
-                            + candidatura.getEtapaAtual().getDescricao());
-        }
+        validarEtapaDoFeedback(candidatura, etapaInformada);
 
         User autor = userRepository.findById(empresaUserId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
 
         var feedback = new CandidaturaFeedback(
                 candidatura,
-                dto.etapa(),
+                etapaInformada,
                 dto.titulo(),
                 dto.mensagem(),
                 dto.nota(),
@@ -62,18 +65,22 @@ public class CandidaturaFeedbackService {
 
         candidaturaService.notificarCandidato(
                 candidatura,
-                "Novo feedback na etapa " + dto.etapa().getDescricao() + ": " + dto.titulo());
+                "Novo feedback na etapa " + etapaInformada.getNome() + ": " + dto.titulo());
 
         return mapper.toFeedbackResponse(salvo);
     }
 
     @Transactional
     public FeedbackResponse atualizar(UUID empresaUserId, UUID candidaturaId, UUID feedbackId, CreateFeedbackDto dto) {
-        candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
+        var candidatura = candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
+        var etapaInformada = tipoDeEtapaRepository.findByIdDisponivelParaEmpresa(dto.etapaId(), empresaUserId)
+                .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Etapa informada nao existe"));
+
+        validarEtapaDoFeedback(candidatura, etapaInformada);
 
         CandidaturaFeedback feedback = buscarFeedback(candidaturaId, feedbackId);
 
-        feedback.setEtapa(dto.etapa());
+        feedback.setEtapa(etapaInformada);
         feedback.setTitulo(dto.titulo());
         feedback.setMensagem(dto.mensagem());
         feedback.setNota(dto.nota());
@@ -88,18 +95,29 @@ public class CandidaturaFeedbackService {
     }
 
     @Transactional(readOnly = true)
-    public List<FeedbackResponse> listarComoEmpresa(UUID empresaUserId, UUID candidaturaId, EtapaProcesso etapa) {
+    public List<FeedbackResponse> listarComoEmpresa(UUID empresaUserId, UUID candidaturaId, UUID etapaId) {
         candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
-        return listar(candidaturaId, etapa);
+        TipoDeEtapa etapaInformada = null;
+        if(etapaId!=null) {
+            etapaInformada = tipoDeEtapaRepository.findByIdDisponivelParaEmpresa(etapaId, empresaUserId)
+                    .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Etapa informada nao existe"));
+        }
+        return listar(candidaturaId, etapaInformada);
     }
 
     @Transactional(readOnly = true)
-    public List<FeedbackResponse> listarComoCandidato(UUID userId, UUID candidaturaId, EtapaProcesso etapa) {
-        candidaturaService.buscarComoCandidato(userId, candidaturaId);
-        return listar(candidaturaId, etapa);
+    public List<FeedbackResponse> listarComoCandidato(UUID userId, UUID candidaturaId, UUID etapaId) {
+        var candidatura = candidaturaService.buscarComoCandidato(userId, candidaturaId);
+        TipoDeEtapa etapaInformada = null;
+        if(etapaId!=null) {
+            etapaInformada = tipoDeEtapaRepository.findByIdDisponivelParaEmpresa(etapaId, candidatura.getVaga().getEmpresa().getId())
+                    .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Etapa informada nao existe"));
+        }
+
+        return listar(candidaturaId, etapaInformada);
     }
 
-    private List<FeedbackResponse> listar(UUID candidaturaId, EtapaProcesso etapa) {
+    private List<FeedbackResponse> listar(UUID candidaturaId, TipoDeEtapa etapa) {
         var feedbacks = etapa != null
                 ? feedbackRepository.findByCandidaturaIdAndEtapaOrderByCreatedAtAsc(candidaturaId, etapa)
                 : feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidaturaId);
@@ -111,5 +129,41 @@ public class CandidaturaFeedbackService {
         return feedbackRepository.findByIdAndCandidaturaId(feedbackId, candidaturaId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                         "Feedback não encontrado para esta candidatura"));
+    }
+
+    //Em resumo aqui ele valida de a etapa informada é valida, ou seja, se não esta tentando acessar por exemplo uma etapa do futuro
+    private void validarEtapaDoFeedback(
+            Candidatura candidatura,
+            TipoDeEtapa etapaInformada) {
+
+        var etapas = candidatura.getVaga().getEtapas();
+
+        int ordemAtual = etapas.stream()
+                .filter(e -> e.getEtapa().getId()
+                        .equals(candidatura.getEtapaAtual().getId()))
+                .mapToInt(VagaEtapa::getOrdem)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "A etapa atual não está configurada nesta vaga"
+                ));
+
+        int ordemInformada = etapas.stream()
+                .filter(e -> e.getEtapa().getId()
+                        .equals(etapaInformada.getId()))
+                .mapToInt(VagaEtapa::getOrdem)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "A etapa informada não pertence a esta vaga"
+                ));
+
+        if (ordemInformada > ordemAtual) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "Não é possível registrar feedback de uma etapa futura. Etapa atual: "
+                            + candidatura.getEtapaAtual().getNome()
+            );
+        }
     }
 }

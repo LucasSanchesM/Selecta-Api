@@ -410,6 +410,16 @@ public class VagaService {
         etapasOrdenadas.addAll(intermediarias);
         etapasOrdenadas.add(etapaFinal);
 
+        for (var etapa : intermediarias) {
+            if (!etapa.isSystem() && !etapa.getCompanyProfile().getId().equals(vaga.getEmpresa().getId())) {
+                throw new BusinessException(HttpStatus.NOT_FOUND, "Uma ou mais etapas informadas não existem");
+            }
+            if (!etapa.isDisponibilidade()) {
+                throw new BusinessException(HttpStatus.CONFLICT, "A etapa '" + etapa.getNome() + "' está desabilitada");
+            }
+            etapa.marcarComoUtilizada();
+        }
+
         vaga.setEtapas(
                 java.util.stream.IntStream.range(0, etapasOrdenadas.size())
                         .mapToObj(i -> new VagaEtapa(

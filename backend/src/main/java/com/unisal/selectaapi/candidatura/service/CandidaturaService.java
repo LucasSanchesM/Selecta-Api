@@ -2,6 +2,7 @@ package com.unisal.selectaapi.candidatura.service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import com.unisal.selectaapi.notificacoes.dtos.PublishNotificacaoDto;
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
 import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import com.unisal.selectaapi.vagas.entity.Vaga;
+import com.unisal.selectaapi.vagas.entity.VagaEtapa;
 import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
 import com.unisal.selectaapi.vagas.services.TipoDeEtapaService;
 import com.unisal.selectaapi.vagas.services.VagaService;
@@ -56,6 +58,7 @@ public class CandidaturaService {
     private final RabbitTemplate rabbitTemplate;
     private final NotificacaoService notificacaoService;
     private final CompanyMemberService companyMemberService;
+    private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
     public CandidaturaService(CandidaturaRepository candidaturaRepository,
                               CandidaturaHistoricoRepository historicoRepository,
@@ -65,7 +68,7 @@ public class CandidaturaService {
                               VagaRepository vagaRepository,
                               UserRepository userRepository,
                               CandidaturaMapper mapper,
-                              RabbitTemplate rabbitTemplate, NotificacaoService notificacaoService, CompanyMemberService companyMemberService) {
+                              RabbitTemplate rabbitTemplate, NotificacaoService notificacaoService, CompanyMemberService companyMemberService, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.candidaturaRepository = candidaturaRepository;
         this.historicoRepository = historicoRepository;
         this.feedbackRepository = feedbackRepository;
@@ -77,6 +80,7 @@ public class CandidaturaService {
         this.rabbitTemplate = rabbitTemplate;
         this.notificacaoService = notificacaoService;
         this.companyMemberService = companyMemberService;
+        this.tipoDeEtapaRepository = tipoDeEtapaRepository;
     }
 
 
@@ -101,7 +105,13 @@ public class CandidaturaService {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Você já se candidatou para esta vaga");
         }
-        var etapaInicial = vaga.getEtapas().getFirst().getEtapa();
+        var etapaInicial = vaga.getEtapas().stream()
+                .min(Comparator.comparingInt(VagaEtapa::getOrdem))
+                .map(VagaEtapa::getEtapa)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "Esta vaga não possui etapas configuradas"
+                ));
 
         var candidatura = new Candidatura(vaga, candidato, dto.cartaApresentacao(), dto.curriculoUrl(), etapaInicial);
         var salva = candidaturaRepository.save(candidatura);
@@ -171,9 +181,11 @@ public class CandidaturaService {
     public List<CandidaturaResponse> listarCandidaturasDaEmpresa(UUID empresaId,
             UUID vagaId,
             StatusCandidatura status,
-            EtapaProcesso etapa,
+            UUID etapaId,
             String candidatoNome) {
 
+        var etapa = tipoDeEtapaRepository.findByIdDisponivelParaEmpresa(etapaId, empresaId)
+                                                .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Etapa informada não existe"));
         var spec = CandidaturaSpecification.withFilters(empresaId, vagaId, status, etapa, candidatoNome);
 
         return candidaturaRepository.findAll(spec)
@@ -198,34 +210,41 @@ public class CandidaturaService {
         }
 
         TipoDeEtapa etapaAnterior = candidatura.getEtapaAtual();
+
         List<TipoDeEtapa> fluxo = candidatura.getVaga().getEtapas().stream()
-            .map(etapa -> etapa.getEtapa())
-            .toList();
+                .sorted(Comparator.comparingInt(VagaEtapa::getOrdem))
+                .map(VagaEtapa::getEtapa)
+                .toList();
 
         if (fluxo.isEmpty()) {
-            fluxo = EtapaProcesso.etapasConfiguraveisPadrao();
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "Esta vaga não possui etapas configuradas"
+            );
         }
 
         int indiceEtapaAtual = fluxo.indexOf(etapaAnterior);
-        EtapaProcesso proximaEtapa = indiceEtapaAtual + 1 < fluxo.size()
+        TipoDeEtapa proximaEtapa = indiceEtapaAtual + 1 < fluxo.size()
             ? fluxo.get(indiceEtapaAtual + 1)
             : null;
 
-        if (proximaEtapa == null || dto.etapa() != proximaEtapa) {
+        var etapaInformada = tipoDeEtapaRepository.findById(dto.etapaId()).orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada nao existe"));
+
+        if (proximaEtapa == null || !etapaInformada.getId().equals(proximaEtapa.getId())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST,
                 "A próxima etapa deve ser " + (proximaEtapa == null
                     ? "inexistente, pois o fluxo já foi concluído"
-                    : proximaEtapa.getDescricao()));
+                    : proximaEtapa.getNome()));
         }
 
-        candidatura.setEtapaAtual(dto.etapa());
+        candidatura.setEtapaAtual(etapaInformada);
         Candidatura salva = candidaturaRepository.save(candidatura);
         User autor = buscarUsuario(empresaUserId);
 
         registrarHistorico(
                 salva,
                 etapaAnterior,
-                dto.etapa(),
+                etapaInformada,
                 salva.getStatus(),
                 salva.getStatus(),
                 dto.observacao(),
@@ -252,14 +271,16 @@ public class CandidaturaService {
         }
 
         StatusCandidatura statusAnterior = candidatura.getStatus();
-        EtapaProcesso etapaAnterior = candidatura.getEtapaAtual();
+        TipoDeEtapa etapaAnterior = candidatura.getEtapaAtual();
 
         candidatura.setStatus(dto.status());
         candidatura.setMotivoEncerramento(dto.motivo());
         candidatura.setFinalizadaEm(Instant.now());
 
         if (dto.status() == StatusCandidatura.APROVADA) {
-            candidatura.setEtapaAtual(EtapaProcesso.CONTRATACAO);
+            var etapaFinal = tipoDeEtapaRepository.findByCodigoAndCompanyProfileIsNull("FINALIZADA")
+                                    .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Etapa final não registrada"));
+            candidatura.setEtapaAtual(etapaFinal);
 
             // consome uma posição e fecha a vaga automaticamente quando acabarem
             Vaga vaga = candidatura.getVaga();
@@ -313,7 +334,7 @@ public class CandidaturaService {
                 candidato.getName(),
                 candidatura.getVaga().getTitulo(),
                 candidatura.getVaga().getEmpresa().getCompanyName(),
-                candidatura.getEtapaAtual().getDescricao(),
+                candidatura.getEtapaAtual().getNome(),
                 candidatura.getStatus().getDescricao(),
                 mensagem,
                 agendamento != null ? agendamento.getTitulo() : null,
@@ -333,7 +354,7 @@ public class CandidaturaService {
         }
         else{
             String descricao = (mensagem == null || mensagem.isBlank())
-                    ? "Sua candidatura agora está na etapa: " + candidatura.getEtapaAtual().getDescricao() + "."
+                    ? "Sua candidatura agora está na etapa: " + candidatura.getEtapaAtual().getNome() + "."
                     : mensagem;
             notificacaoService.publicarNotificacao(candidatura.getCandidato().getUser().getId(),
                     new PublishNotificacaoDto("Atualização na Candidatura",
@@ -399,15 +420,4 @@ public class CandidaturaService {
                 });
     }
 
-    public int ordemNaVaga(Vaga vaga, TipoDeEtapa tipo) {
-        return switch (tipo.getPapelEtapa()) {
-            case INICIAL -> -1;
-            case FINAL -> Integer.MAX_VALUE;
-            case INTERMEDIARIA -> jobStageRepository
-                    .findByJobIdAndTipoDeEtapaId(vaga.getId(), tipo.getId())
-                    .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
-                            "Esta etapa não faz parte da vaga"))
-                    .getStageOrder();
-        };
-    }
 }
