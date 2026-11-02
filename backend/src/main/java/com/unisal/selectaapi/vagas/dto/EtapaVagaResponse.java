@@ -7,5 +7,6 @@ import java.util.UUID;
 public record EtapaVagaResponse(
         UUID etapaId,
         String nome,
+        String descricao,
         int ordem) {
 }

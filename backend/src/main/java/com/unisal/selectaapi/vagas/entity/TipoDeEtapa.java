@@ -24,6 +24,9 @@
         @Column(name = "codigo")
         private String codigo;
 
+        @Column(name = "descricao", length = 255)
+        private String descricao;
+
         @Column(name = "ja_utilizada", nullable = false)
         private boolean jaUtilizada = false;
 
@@ -33,9 +36,22 @@
         @Column(name = "created_at", nullable = false)
         private Instant created_at;
 
-        public TipoDeEtapa(CompanyProfile companyProfile, String nome) {
+        public TipoDeEtapa(CompanyProfile companyProfile, String nome, String descricao) {
             this.companyProfile = companyProfile;
             this.nome = nome;
+            this.descricao = descricao;
+        }
+
+        public String getDescricao() {
+            return descricao;
+        }
+
+        public void setDescricao(String descricao) {
+            this.descricao = descricao;
+        }
+
+        public void setJaUtilizada(boolean jaUtilizada) {
+            this.jaUtilizada = jaUtilizada;
         }
 
         public TipoDeEtapa() {

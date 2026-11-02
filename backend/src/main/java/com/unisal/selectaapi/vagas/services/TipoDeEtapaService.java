@@ -37,6 +37,7 @@ public class TipoDeEtapaService {
         }
         var etapa = new TipoDeEtapa();
         etapa.setNome(createEtapaDto.nomeEtapa().trim());
+        etapa.setDescricao(createEtapaDto.descricao().trim());
         etapa.setCompanyProfile(company);
         var saved = tipoDeEtapaRepository.save(etapa);
         return toDto(saved);
@@ -93,6 +94,10 @@ public class TipoDeEtapaService {
         }
         if(!etapa.getCompanyProfile().getId().equals(company.getId())){
             throw new BusinessException(HttpStatus.FORBIDDEN, "Esta etapa não existe para o seu usuario");
+        }
+
+        if(dto.descricao() != null && !dto.descricao().isBlank()){
+            etapa.setDescricao(dto.descricao().trim());
         }
         if(dto.name() != null && !dto.name().isBlank()){
             var novoNome = dto.name().trim();
@@ -166,6 +171,7 @@ public class TipoDeEtapaService {
     private TipoDeEtapaResponseDto toDto(TipoDeEtapa etapa){
         return new TipoDeEtapaResponseDto(  etapa.getId(),
                                             etapa.getNome(),
+                                            etapa.getDescricao(),
                                             etapa.isSystem() ? null :etapa.getCompanyProfile().getId(),
                                             etapa.isSystem(),
                                             etapa.isJaUtilizada(),

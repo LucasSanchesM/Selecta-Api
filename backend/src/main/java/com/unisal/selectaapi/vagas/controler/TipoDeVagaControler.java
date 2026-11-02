@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.vagas.controler;
 
+import com.unisal.selectaapi.vagas.dto.AlterarEstadoDto;
 import com.unisal.selectaapi.vagas.dto.CreateEtapaDto;
 import com.unisal.selectaapi.vagas.dto.TipoDeEtapaResponseDto;
 import com.unisal.selectaapi.vagas.dto.UpdateTipoDeEtapaDto;
@@ -70,8 +71,9 @@ public class TipoDeVagaControler {
     @PutMapping("/state/{id}")
     public ResponseEntity<TipoDeEtapaResponseDto> alterarEstadoEtapa(@AuthenticationPrincipal Jwt jwt,
                                                                   @PathVariable("id") UUID id,
-                                                                  @RequestBody boolean novoEstado){
-        return ResponseEntity.ok(tipoDeEtapaService.alterarEstadoEtapa(id, pegarUserIdJwt(jwt), novoEstado));
+                                                                  @RequestBody AlterarEstadoDto dto){
+        System.out.println("Estado: " + dto.novoEstado());
+        return ResponseEntity.ok(tipoDeEtapaService.alterarEstadoEtapa(id, pegarUserIdJwt(jwt), dto.novoEstado()));
     }
 
     @PreAuthorize("hasAuthority('COMPANY')")

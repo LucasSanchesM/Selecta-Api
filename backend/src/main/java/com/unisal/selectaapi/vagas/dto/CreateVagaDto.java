@@ -48,7 +48,7 @@ public record CreateVagaDto(
     @NotNull(message = "O campo 'longitude' é obrigatorio")
     Double longitude,
 
-    @Size(max = 5, message = "A vaga pode ter no máximo 5 etapas configuráveis")
+    @Size(max = 20, message = "A vaga pode ter no máximo 20 etapas configuráveis")
     List<UUID> etapasId
 
 ) {}

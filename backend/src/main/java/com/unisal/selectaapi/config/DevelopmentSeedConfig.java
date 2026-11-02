@@ -30,11 +30,12 @@ public class DevelopmentSeedConfig {
     private TipoDeEtapa systemStage(
             TipoDeEtapaRepository repository,
             String codigo,
-            String nome) {
+            String nome,
+            String descricao) {
 
         return repository.findByCodigoAndCompanyProfileIsNull(codigo)
                 .orElseGet(() -> {
-                    TipoDeEtapa etapa = new TipoDeEtapa(null, nome);
+                    TipoDeEtapa etapa = new TipoDeEtapa(null, nome, descricao);
                     etapa.setCodigo(codigo);
                     return repository.save(etapa);
                 });
@@ -55,13 +56,13 @@ public class DevelopmentSeedConfig {
                 return;
             }
 
-            TipoDeEtapa inscricao = systemStage(tipoDeEtapaRepository, "INSCRICAO", "Inscrição");
-            TipoDeEtapa triagem = systemStage(tipoDeEtapaRepository, "TRIAGEM", "Triagem");
-            TipoDeEtapa entrevistaRh = systemStage(tipoDeEtapaRepository, "ENTREVISTA_RH", "Entrevista com RH");
-            TipoDeEtapa testeTecnico = systemStage(tipoDeEtapaRepository, "TESTE_TECNICO", "Teste técnico");
-            TipoDeEtapa entrevistaTecnica = systemStage(tipoDeEtapaRepository, "ENTREVISTA_TECNICA", "Entrevista técnica");
-            TipoDeEtapa proposta = systemStage(tipoDeEtapaRepository, "PROPOSTA", "Proposta");
-            TipoDeEtapa encerrada = systemStage(tipoDeEtapaRepository, "ENCERRADA", "Encerrada");
+            TipoDeEtapa inscricao = systemStage(tipoDeEtapaRepository, "INSCRICAO", "Inscrição", "Candidatura recebida.");
+            TipoDeEtapa triagem = systemStage(tipoDeEtapaRepository, "TRIAGEM", "Triagem", "Análise inicial dos candidatos.");
+            TipoDeEtapa entrevistaRh = systemStage(tipoDeEtapaRepository, "ENTREVISTA_RH", "Entrevista com RH", "Entrevista para avaliar perfil e alinhamento.");
+            TipoDeEtapa testeTecnico = systemStage(tipoDeEtapaRepository, "TESTE_TECNICO", "Teste técnico", "Entrevista para avaliar perfil e alinhamento.");
+            TipoDeEtapa entrevistaTecnica = systemStage(tipoDeEtapaRepository, "ENTREVISTA_TECNICA", "Entrevista técnica", "Avaliação de conhecimentos técnicos.");
+            TipoDeEtapa proposta = systemStage(tipoDeEtapaRepository, "PROPOSTA", "Proposta", "Apresentação da proposta de contratação");
+            TipoDeEtapa encerrada = systemStage(tipoDeEtapaRepository, "ENCERRADA", "Encerrada", "Processo seletivo finalizado.");
 
             List<TipoDeEtapa> etapasPadrao = List.of(
                     inscricao,

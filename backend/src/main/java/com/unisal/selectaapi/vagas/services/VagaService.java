@@ -320,6 +320,7 @@ public class VagaService {
                 .map(etapa -> new EtapaVagaResponse(
                         etapa.getEtapa().getId(),
                         etapa.getEtapa().getNome(),
+                        etapa.getEtapa().getDescricao(),
                         etapa.getOrdem()
                 ))
                 .toList();
