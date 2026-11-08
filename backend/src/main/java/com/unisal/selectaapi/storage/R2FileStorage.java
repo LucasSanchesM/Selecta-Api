@@ -1,5 +1,8 @@
 package com.unisal.selectaapi.storage;
 
+import java.util.UUID;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+
 import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +30,8 @@ public class R2FileStorage implements FileStorage {
     private final String accessKeyId;
     private final String secretAccessKey;
     private final String bucket;
+    private static final String PRIVATE_RESUMES = "private-resumes/";
+    private final String resumeBucket;
     private final String publicBaseUrl;
     private volatile S3Client client;
 
@@ -35,10 +40,12 @@ public class R2FileStorage implements FileStorage {
             @Value("${r2.access-key-id:}") String accessKeyId,
             @Value("${r2.secret-access-key:}") String secretAccessKey,
             @Value("${r2.bucket:}") String bucket,
+            @Value("${r2.resume-bucket:}") String resumeBucket,
             @Value("${r2.public-base-url:}") String publicBaseUrl) {
         this.endpoint = endpoint.trim();
         this.accessKeyId = accessKeyId.trim();
         this.secretAccessKey = secretAccessKey.trim();
+        this.resumeBucket = resumeBucket.trim();
         this.bucket = bucket.trim();
         this.publicBaseUrl = removeTrailingSlash(publicBaseUrl.trim());
     }
@@ -49,8 +56,40 @@ public class R2FileStorage implements FileStorage {
         
         String key = directory + "/" + fileName;
 
+        return put(bucket, key, publicBaseUrl + "/" + key, content, contentType);
+    }
+
+    @Override
+    public StoredFile storeResume(UUID userId, byte[] content) {
+        requireResumeBucket();
+        String fileName = UUID.randomUUID() + ".pdf";
+        String key = PRIVATE_RESUMES + userId + "/" + fileName;
+        return put(resumeBucket, key, "/candidate-profile/" + userId + "/resume/" + fileName,
+                content, "application/pdf");
+    }
+
+    @Override
+    public byte[] readResume(String key) {
+        requireResumeBucket();
+        try {
+            return getClient().getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(resumeBucket).key(key).build()).asByteArray();
+        } catch (S3Exception exception) {
+            throw new BusinessException(exception.statusCode() == 404 ? HttpStatus.NOT_FOUND : HttpStatus.BAD_GATEWAY,
+                    "Não foi possível obter o currículo");
+        }
+    }
+
+    private void requireResumeBucket() {
+        if (endpoint.isBlank() || accessKeyId.isBlank() || secretAccessKey.isBlank()
+                || resumeBucket.isBlank() || resumeBucket.equals(bucket)) {
+            throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "Configure um bucket privado para currículos");
+        }
+    }
+
+    private StoredFile put(String targetBucket, String key, String url, byte[] content, String contentType) {
         PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(bucket)
+                .bucket(targetBucket)
                 .key(key)
                 .contentType(contentType)
                 .contentLength((long) content.length)
@@ -58,7 +97,7 @@ public class R2FileStorage implements FileStorage {
 
         try {
             getClient().putObject(request, RequestBody.fromBytes(content));
-            return new StoredFile(key, publicBaseUrl + "/" + key);
+            return new StoredFile(key, url);
         } catch (S3Exception exception) {
             LOGGER.error("Falha ao enviar arquivo ao R2: status={}", exception.statusCode());
             throw new BusinessException(HttpStatus.BAD_GATEWAY, "Não foi possível armazenar o arquivo");
@@ -70,11 +109,11 @@ public class R2FileStorage implements FileStorage {
 
     @Override
     public void deleteQuietly(String key) {
-        if (key == null || key.isBlank() || !isConfigured()) {
+        if (key == null || key.isBlank()) {
             return;
         }
         try {
-            getClient().deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+            getClient().deleteObject(DeleteObjectRequest.builder().bucket(key.startsWith(PRIVATE_RESUMES) ? resumeBucket : bucket).key(key).build());
         } catch (RuntimeException exception) {
             LOGGER.warn("Não foi possível remover o arquivo antigo do R2: key={}", key, exception);
         }

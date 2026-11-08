@@ -43,4 +43,8 @@ public record VagaResponse(
     Instant createdAt,
     Instant updatedAt
 
-) {}
+) {
+    public boolean isSalarioACombinar() {
+        return salario == null || salario.signum() == 0;
+    }
+}

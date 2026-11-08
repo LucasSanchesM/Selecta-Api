@@ -37,8 +37,6 @@ public class GoogleOAuthService implements OAuthProviderService{
     public User authenticateCandidate(OidcUser oidcUser){
         String subject = requiredClaim(oidcUser.getSubject(), "Google nao retornou um subject");
 
-
-        
         //Primeiro eu vejo se há algum perfil associado a esse subject
         var googleAccount = userRepository.findByGoogleSubject(subject);
         if(googleAccount.isPresent()){

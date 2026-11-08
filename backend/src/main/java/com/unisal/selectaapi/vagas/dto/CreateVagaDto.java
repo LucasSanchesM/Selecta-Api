@@ -20,7 +20,6 @@ public record CreateVagaDto(
     @NotBlank(message = "O campo 'titulo' é obrigatório")
     String titulo,
 
-    @NotNull(message = "O campo 'salario' é obrigatório")
     @DecimalMin(value = "0.0", inclusive = true, message = "O salário não pode ser negativo")
     BigDecimal salario,
 
@@ -49,6 +48,14 @@ public record CreateVagaDto(
     Double longitude,
 
     @Size(max = 20, message = "A vaga pode ter no máximo 20 etapas configuráveis")
-    List<UUID> etapasId
+    List<UUID> etapasId,
 
-) {}
+    Boolean salarioACombinar
+) {
+    public CreateVagaDto(String titulo, BigDecimal salario, Integer quantidadeVagas,
+            String descricao, String beneficios, UUID companyProfileId, VagaRole categoria,
+            ModalidadeVaga modalidade, Double latitude, Double longitude, List<UUID> etapasId) {
+        this(titulo, salario, quantidadeVagas, descricao, beneficios, companyProfileId, categoria,
+                modalidade, latitude, longitude, etapasId, null);
+    }
+}

@@ -24,10 +24,11 @@ import com.unisal.selectaapi.vagas.dto.EtapaVagaResponse;
 @Component
 public class CandidaturaMapper {
 
-    public CandidaturaResponse toResponse(Candidatura candidatura, long totalFeedbacks) {
+    public CandidaturaResponse toResponse(Candidatura candidatura, long totalFeedbacks, boolean companyView) {
         Vaga vaga = candidatura.getVaga();
         CompanyProfile empresa = vaga.getEmpresa();
         CandidateProfile candidato = candidatura.getCandidato();
+        var preferences = candidato.getUser().getPreferences();
         List<VagaEtapa> etapasConfiguradas = vaga.getEtapas().stream()
             .sorted(Comparator.comparing(VagaEtapa::getOrdem))
             .toList();
@@ -50,16 +51,16 @@ public class CandidaturaMapper {
                 candidato.getId(),
                 candidato.getUser().getId(),
                 candidato.getUser().getName(),
-                candidato.getUser().getEmail(),
+                !companyView || preferences.showEmail() ? candidato.getUser().getEmail() : null,
                 candidato.getHeadline(),
-                candidato.getProfileImageUrl(),
+                !companyView || preferences.showPhoto() ? candidato.getProfileImageUrl() : null,
                 candidatura.getEtapaAtual().getId(),
                 candidatura.getEtapaAtual().getNome(),
                 etapasVaga,
                 candidatura.getStatus(),
                 candidatura.getStatus().getDescricao(),
                 candidatura.getCartaApresentacao(),
-                candidatura.getCurriculoUrl(),
+                !companyView || preferences.showResume() ? candidatura.getCurriculoUrl() : null,
                 candidatura.getMotivoEncerramento(),
                 totalFeedbacks,
                 candidatura.getFinalizadaEm(),
@@ -70,10 +71,10 @@ public class CandidaturaMapper {
     public CandidaturaDetalheResponse toDetalheResponse(Candidatura candidatura,
             List<CandidaturaHistorico> historico,
             List<CandidaturaFeedback> feedbacks,
-            List<CandidaturaAgendamento> agendamentos) {
+            List<CandidaturaAgendamento> agendamentos, boolean companyView) {
 
         return new CandidaturaDetalheResponse(
-                toResponse(candidatura, feedbacks.size()),
+                toResponse(candidatura, feedbacks.size(), companyView),
                 historico.stream().map(this::toHistoricoResponse).toList(),
                 feedbacks.stream().map(this::toFeedbackResponse).toList(),
                 agendamentos.stream().map(this::toAgendamentoResponse).toList());

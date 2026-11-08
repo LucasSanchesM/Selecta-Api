@@ -25,6 +25,13 @@ public record   UpdateVaga(
     Double longitude,
     VagaRole categoria,
     ModalidadeVaga modalidade,
-    Boolean ativa
-
-) {}
+    Boolean ativa,
+    Boolean salarioACombinar
+) {
+    public UpdateVaga(String titulo, BigDecimal salario, Integer quantidadeVagas, String descricao,
+            String beneficios, Double latitude, Double longitude, VagaRole categoria,
+            ModalidadeVaga modalidade, Boolean ativa) {
+        this(titulo, salario, quantidadeVagas, descricao, beneficios, latitude, longitude,
+                categoria, modalidade, ativa, null);
+    }
+}

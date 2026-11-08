@@ -87,7 +87,7 @@ public class VagaService {
         
         var vaga = new Vaga();
         vaga.setTitulo(dto.titulo());
-        vaga.setSalario(dto.salario());
+        vaga.setSalario(resolverSalario(null, dto.salario(), dto.salarioACombinar()));
         vaga.setQuantidadeVagas(dto.quantidadeVagas());
         vaga.setVagasPreenchidas(0);
         vaga.setDescricao(dto.descricao());
@@ -242,9 +242,7 @@ public class VagaService {
             vaga.setTitulo(dto.titulo());
         }
 
-        if (dto.salario() != null) {
-            vaga.setSalario(dto.salario());
-        }
+        vaga.setSalario(resolverSalario(vaga.getSalario(), dto.salario(), dto.salarioACombinar()));
 
         if (dto.quantidadeVagas() != null) {
             int preenchidas = vaga.getVagasPreenchidas() == null ? 0 : vaga.getVagasPreenchidas();
@@ -349,6 +347,18 @@ public class VagaService {
                 vaga.getCreatedAt(),
                 vaga.getUpdatedAt()
         );
+    }
+
+    private BigDecimal resolverSalario(BigDecimal atual, BigDecimal informado, Boolean aCombinar) {
+        if (Boolean.TRUE.equals(aCombinar)) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal valor = informado != null ? informado : atual;
+        if (valor == null || valor.signum() < 0 || (Boolean.FALSE.equals(aCombinar) && valor.signum() == 0)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "Informe um salário maior que zero ou selecione salário a combinar");
+        }
+        return valor;
     }
 
     private void configurarEtapas(Vaga vaga, List<UUID> etapasId) {

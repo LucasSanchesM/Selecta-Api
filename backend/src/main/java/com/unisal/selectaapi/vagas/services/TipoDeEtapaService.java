@@ -37,7 +37,7 @@ public class TipoDeEtapaService {
         }
         var etapa = new TipoDeEtapa();
         etapa.setNome(createEtapaDto.nomeEtapa().trim());
-        etapa.setDescricao(createEtapaDto.descricao().trim());
+        etapa.setDescricao(createEtapaDto.descricao() == null ? "" : createEtapaDto.descricao().trim());
         etapa.setCompanyProfile(company);
         var saved = tipoDeEtapaRepository.save(etapa);
         return toDto(saved);

@@ -1,5 +1,7 @@
 package com.unisal.selectaapi.user;
 
+import com.unisal.selectaapi.exception.BusinessException;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -50,20 +52,35 @@ public class UserController {
     }
 
     @GetMapping("/{id:[0-9a-fA-F-]{36}}")
-    public ResponseEntity<UserResponseDto> findUserById(@PathVariable("id") UUID id) {
+    public ResponseEntity<UserResponseDto> findUserById(@AuthenticationPrincipal Jwt jwt, @PathVariable("id") UUID id) {
+        requireOwnerOrAdmin(jwt, id);
         var response = userService.findUserById(id);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id:[0-9a-fA-F-]{36}}")
-    public ResponseEntity<UserResponseDto> updateUser(@PathVariable("id") UUID id, @Valid @RequestBody UpdateUserDto dto) {
+    public ResponseEntity<UserResponseDto> updateUser(@AuthenticationPrincipal Jwt jwt, @PathVariable("id") UUID id, @Valid @RequestBody UpdateUserDto dto) {
+        requireOwnerOrAdmin(jwt, id);
+        if (!isAdmin(jwt) && (dto.role() != null || dto.active() != null)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar role ou active");
+        }
         var response = userService.updateUser(id, dto);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id:[0-9a-fA-F-]{36}}")
-    public ResponseEntity<Void> deleteUser(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> deleteUser(@AuthenticationPrincipal Jwt jwt, @PathVariable("id") UUID id) {
+        requireOwnerOrAdmin(jwt, id);
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+    private void requireOwnerOrAdmin(Jwt jwt, UUID id) {
+        if (!id.equals(UUID.fromString(jwt.getSubject())) && !isAdmin(jwt)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Acesso restrito ao titular da conta");
+        }
+    }
+
+    private boolean isAdmin(Jwt jwt) {
+        return "ADMIN".equals(jwt.getClaimAsString("scope"));
     }
 }

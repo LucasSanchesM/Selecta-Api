@@ -1,5 +1,7 @@
 package com.unisal.selectaapi.candidatura.service;
 
+import com.unisal.selectaapi.mensageria.EmailUpdateType;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -191,6 +193,6 @@ public class CandidaturaAgendamentoService {
     }
 
     private void notificar(Candidatura candidatura, String mensagem, CandidaturaAgendamento agendamento) {
-        candidaturaService.notificarCandidato(candidatura, mensagem, agendamento);
+        candidaturaService.notificarCandidato(candidatura, mensagem, EmailUpdateType.APPOINTMENT, agendamento);
     }
 }

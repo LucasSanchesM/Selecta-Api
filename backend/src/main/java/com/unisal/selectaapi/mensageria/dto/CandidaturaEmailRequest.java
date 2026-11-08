@@ -1,5 +1,8 @@
 package com.unisal.selectaapi.mensageria.dto;
 
+import java.util.UUID;
+import com.unisal.selectaapi.mensageria.EmailUpdateType;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
@@ -32,5 +35,9 @@ public record CandidaturaEmailRequest(
 
         Integer agendamentoDuracaoMinutos,
 
-        String agendamentoLink) {
+        String agendamentoLink,
+
+        UUID userId,
+
+        EmailUpdateType type) {
 }

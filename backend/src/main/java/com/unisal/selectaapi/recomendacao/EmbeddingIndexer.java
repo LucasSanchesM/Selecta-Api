@@ -31,6 +31,7 @@ public class EmbeddingIndexer {
     private final CandidateProfileRepository candidateProfileRepository;
     private final VagaRepository vagaRepository;
     private final TransactionTemplate readOnlyTx;
+    private final TransactionTemplate candidateTx;
 
     public EmbeddingIndexer(EmbeddingProperties properties,
             EmbeddingSchemaInitializer schema,
@@ -47,6 +48,7 @@ public class EmbeddingIndexer {
         this.openAiClient = openAiClient;
         this.candidateProfileRepository = candidateProfileRepository;
         this.vagaRepository = vagaRepository;
+        this.candidateTx = new TransactionTemplate(transactionManager);
         this.readOnlyTx = new TransactionTemplate(transactionManager);
         this.readOnlyTx.setReadOnly(true);
     }
@@ -56,7 +58,18 @@ public class EmbeddingIndexer {
             return;
         }
 
-        Optional<Source> source = readOnlyTx.execute(status -> loadSource(message.target(), message.id()));
+        if (message.target() == EmbeddingTarget.CANDIDATO) {
+            candidateTx.executeWithoutResult(status -> {
+                if (embeddingRepository.lockEligibleCandidate(message.id())) {
+                    index(message, loadSource(message.target(), message.id()));
+                }
+            });
+        } else {
+            index(message, readOnlyTx.execute(status -> loadSource(message.target(), message.id())));
+        }
+    }
+
+    private void index(EmbeddingJobMessage message, Optional<Source> source) {
 
         if (source == null || source.isEmpty()) {
             embeddingRepository.delete(message.target(), message.id());

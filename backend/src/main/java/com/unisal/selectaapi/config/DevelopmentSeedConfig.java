@@ -83,7 +83,7 @@ public class DevelopmentSeedConfig {
 
             CompanyProfile ponteVerde = company(
                     userRepository, companyProfileRepository, passwordEncoder,
-                    "Ponte Verde Consultoria", "talentos@ponteverde.com.br", "28888888000102",
+                    "Ponte Verde Consultoria", "        ", "28888888000102",
                     "Consultoria empresarial", "Campinas", "SP",
                     "Consultoria focada em pessoas, processos e crescimento sustentavel.",
                     -22.9056, -47.0608);

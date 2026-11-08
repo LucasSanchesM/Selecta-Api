@@ -1,5 +1,10 @@
 package com.unisal.selectaapi.user.entity;
 
+import com.unisal.selectaapi.user.UserPreferences;
+import jakarta.persistence.Embedded;
+import org.hibernate.annotations.DynamicUpdate;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,6 +19,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.SQLRestriction;
 
+@DynamicUpdate
 @Entity
 @Table(name = "users")
 @SQLRestriction("excluido_at IS NULL")
@@ -56,6 +62,18 @@ public class User {
 
     @Column(name = "excluido_at")
     private Instant excluidoAt;
+
+    @Embedded
+    private UserPreferences preferences = UserPreferences.defaults();
+
+    @JsonIgnore
+    public UserPreferences getPreferences() {
+        return preferences;
+    }
+
+    public void setPreferences(UserPreferences preferences) {
+        this.preferences = preferences;
+    }
 
     public User() {
     }
