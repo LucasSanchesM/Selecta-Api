@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.user;
 
+import com.unisal.selectaapi.candidate.service.CandidateProfileService;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -25,6 +26,7 @@ import com.unisal.selectaapi.user.entity.User;
 @Service
 public class UserService {
 
+    private final CandidateProfileService candidateProfiles;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final RabbitTemplate rabbitTemplate;
@@ -32,7 +34,9 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
 
     public UserService(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
-                       RabbitTemplate rabbitTemplate, VerificationCodeService verificationCodeService, RefreshTokenRepository refreshTokenRepository) {
+                       RabbitTemplate rabbitTemplate, VerificationCodeService verificationCodeService, RefreshTokenRepository refreshTokenRepository,
+                       CandidateProfileService candidateProfiles) {
+        this.candidateProfiles = candidateProfiles;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.rabbitTemplate = rabbitTemplate;
@@ -68,6 +72,9 @@ public class UserService {
         user.setActive(false);
 
         var savedUser = userRepository.save(user);
+        if (dto.profile() != null) {
+            candidateProfiles.createRegistrationProfile(savedUser, dto.profile().headline(), dto.profile().city(), dto.profile().state());
+        }
         verificationCodeService.saveCode(savedUser, verificationCode);
 
         // Publica mensagem no RabbitMQ para enviar o email com o código

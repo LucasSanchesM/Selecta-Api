@@ -46,6 +46,7 @@ public class VagaController {
     public ResponseEntity<VagaResponse> createVaga(
             @Valid @RequestBody CreateVagaDto dto) {
 
+        System.out.println("Teste");
         var vaga = vagaService.createVaga(dto);
 
         return ResponseEntity

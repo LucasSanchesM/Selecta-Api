@@ -1,5 +1,12 @@
 package com.unisal.selectaapi.candidate;
 
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+
+import com.unisal.selectaapi.company.service.CompanyMemberService;
+import com.unisal.selectaapi.candidatura.repository.CandidaturaRepository;
+import com.unisal.selectaapi.exception.BusinessException;
+
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -33,7 +40,13 @@ public class CandidateProfileController {
 
     private final CandidateProfileService candidateProfileService;
 
-    public CandidateProfileController(CandidateProfileService candidateProfileService) {
+    private final CompanyMemberService companyMembers;
+    private final CandidaturaRepository candidaturas;
+
+    public CandidateProfileController(CandidateProfileService candidateProfileService,
+            CompanyMemberService companyMembers, CandidaturaRepository candidaturas) {
+        this.companyMembers = companyMembers;
+        this.candidaturas = candidaturas;
         this.candidateProfileService = candidateProfileService;
     }
 
@@ -127,8 +140,32 @@ public class CandidateProfileController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<CandidateProfileDto> getProfileByUserId(@PathVariable("userId") UUID userId) {
-        var response = candidateProfileService.findProfileByUserId(userId);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<CandidateProfileDto> getProfileByUserId(@AuthenticationPrincipal Jwt jwt, @PathVariable("userId") UUID userId) {
+        UUID viewerId = UUID.fromString(jwt.getSubject());
+        if (viewerId.equals(userId)) {
+            return ResponseEntity.ok(candidateProfileService.findProfileByUserId(userId));
+        }
+        requireCompanyApplication(viewerId, userId);
+        return ResponseEntity.ok(candidateProfileService.findProfileForCompany(userId));
+    }
+
+    @GetMapping(value = "/{userId}/resume/{fileId}.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> downloadResume(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID userId, @PathVariable UUID fileId) {
+        UUID viewerId = UUID.fromString(jwt.getSubject());
+        boolean companyView = !viewerId.equals(userId);
+        if (companyView) {
+            requireCompanyApplication(viewerId, userId);
+        }
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=curriculo.pdf")
+                .body(candidateProfileService.downloadResume(userId, fileId, companyView));
+    }
+
+    private void requireCompanyApplication(UUID viewerId, UUID userId) {
+        UUID companyId = companyMembers.pegarCompanyPeloUserId(viewerId).getId();
+        if (!candidaturas.existsByCandidatoUserIdAndVagaEmpresaId(userId, companyId)) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Perfil não encontrado para esta empresa");
+        }
     }
 }

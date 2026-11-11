@@ -5,12 +5,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 
 public record FeedbackResponse(
 
         UUID id,
         UUID candidaturaId,
-        EtapaProcesso etapa,
+        UUID etapaId,
         String etapaDescricao,
         String titulo,
         String mensagem,

@@ -28,12 +28,17 @@ spring:
       max-request-size: 6MB
 
   jpa:
+    defer-datasource-initialization: true
     show-sql: true
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/init.sql
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST}
@@ -89,6 +94,7 @@ r2:
   access-key-id: ${R2_ACCESS_KEY_ID:}
   secret-access-key: ${R2_SECRET_ACCESS_KEY:}
   bucket: ${R2_BUCKET:}
+  resume-bucket: ${R2_RESUME_BUCKET:}
   public-base-url: ${R2_PUBLIC_BASE_URL:}
 
 resend:

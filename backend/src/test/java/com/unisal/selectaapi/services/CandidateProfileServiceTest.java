@@ -1,5 +1,7 @@
 package com.unisal.selectaapi.services;
 
+import com.unisal.selectaapi.user.UserPreferences;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -150,6 +152,37 @@ public class CandidateProfileServiceTest {
         // datas
         profile.setCreatedAt(Instant.now());
         profile.setUpdatedAt(Instant.now());
+    }
+
+    @Test
+    void hidesPrivateFieldsFromCompanyAndPreservesOwnerView() {
+        user.setPreferences(new UserPreferences(false, false, false, false, true, true, true, true, true));
+        when(candidateProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        var company = candidateProfileService.findProfileForCompany(userId);
+        assertNull(company.userEmail());
+        assertNull(company.phone());
+        assertNull(company.resumeUrl());
+        assertNull(company.profileImageUrl());
+        assertEquals(profile.getSkills(), company.skills());
+
+        var owner = candidateProfileService.findProfileByUserId(userId);
+        assertEquals(profile.getResumeUrl(), owner.resumeUrl());
+        assertEquals(user.getEmail(), owner.userEmail());
+    }
+
+    @Test
+    void hidingResumeBlocksPreviouslyIssuedDownloadPath() {
+        UUID fileId = UUID.randomUUID();
+        String key = "private-resumes/" + userId + "/" + fileId + ".pdf";
+        profile.setResumeKey(key);
+        user.setPreferences(new UserPreferences(true, true, false, true, true, true, true, true, true));
+        when(candidateProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        assertThrows(BusinessException.class, () -> candidateProfileService.downloadResume(userId, fileId, true));
+        verify(fileStorage, never()).readResume(anyString());
+        candidateProfileService.downloadResume(userId, fileId, false);
+        verify(fileStorage).readResume(key);
     }
 
     @Nested
@@ -770,10 +803,7 @@ public class CandidateProfileServiceTest {
                 return profileSaved;
             });
             
-            doReturn(storedFile).when(fileStorage).store( eq("candidate-resumes/" + inputId),
-                                                            anyString(),
-                                                            any(byte[].class),
-                                                            eq("application/pdf"));
+            doReturn(storedFile).when(fileStorage).storeResume(eq(inputId), any(byte[].class));
 
 
             //===== ACT =======
@@ -962,10 +992,7 @@ public class CandidateProfileServiceTest {
             doReturn(Optional.of(profile)).when(candidateProfileRepository).findByUserId(inputId);
             doThrow(new RuntimeException("Erro exemplo no banco")).when(candidateProfileRepository).saveAndFlush(any(CandidateProfile.class));
 
-            doReturn(storedFile).when(fileStorage).store( eq("candidate-resumes/" + inputId),
-                                                            anyString(),
-                                                            any(byte[].class),
-                                                            eq("application/pdf"));
+            doReturn(storedFile).when(fileStorage).storeResume(eq(inputId), any(byte[].class));
 
 
             //===== ACT =======

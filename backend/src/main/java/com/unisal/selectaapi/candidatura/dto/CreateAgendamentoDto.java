@@ -2,6 +2,7 @@ package com.unisal.selectaapi.candidatura.dto;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.unisal.selectaapi.candidatura.entity.EtapaProcesso;
 
@@ -14,7 +15,7 @@ import jakarta.validation.constraints.Size;
 
 public record CreateAgendamentoDto(
 
-        @NotNull(message = "etapa é obrigatória") EtapaProcesso etapa,
+        @NotNull(message = "etapa é obrigatória") UUID etapaId,
 
         @NotBlank(message = "titulo é obrigatório")
         @Size(max = 150, message = "o título deve ter no máximo 150 caracteres") String titulo,

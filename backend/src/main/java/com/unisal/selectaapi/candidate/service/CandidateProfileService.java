@@ -1,5 +1,6 @@
 package com.unisal.selectaapi.candidate.service;
 
+import com.unisal.selectaapi.user.entity.User;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -57,6 +58,15 @@ public class CandidateProfileService {
         this.userRepository = userRepository;
         this.fileStorage = fileStorage;
         this.eventPublisher = eventPublisher;
+    }
+
+    @Transactional
+    public void createRegistrationProfile(User user, String headline, String city, String state) {
+        var profile = new CandidateProfile(user);
+        profile.setHeadline(headline);
+        profile.setCity(city);
+        profile.setState(state);
+        solicitarEmbedding(candidateProfileRepository.save(profile));
     }
 
     @Transactional
@@ -206,11 +216,7 @@ public class CandidateProfileService {
 
         byte[] content = readAndValidateResume(file);
 
-        StoredFile uploaded = fileStorage.store(
-                "candidate-resumes/" + userId,
-                UUID.randomUUID() + ".pdf",
-                content,
-                "application/pdf");
+        StoredFile uploaded = fileStorage.storeResume(userId, content);
 
         String previousKey = profile.getResumeKey();
         profile.setResumeKey(uploaded.key());
@@ -327,9 +333,19 @@ public class CandidateProfileService {
     }
 
     private void solicitarEmbedding(CandidateProfile profile) {
-        if (eventPublisher != null && profile != null && profile.getId() != null) {
+        if (eventPublisher != null && profile != null && profile.getId() != null && profile.getUser().getPreferences().personalizedJobs()) {
             eventPublisher.publishEvent(EmbeddingRequestedEvent.candidato(profile.getId()));
         }
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] downloadResume(UUID userId, UUID fileId, boolean companyView) {
+        var profile = getProfileOrThrow(userId);
+        String key = "private-resumes/" + userId + "/" + fileId + ".pdf";
+        if (!key.equals(profile.getResumeKey()) || (companyView && !profile.getUser().getPreferences().showResume())) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Currículo não disponível");
+        }
+        return fileStorage.readResume(key);
     }
 
     private CandidateProfile getProfileOrThrow(UUID userId) {
@@ -427,6 +443,16 @@ public class CandidateProfileService {
     }
 
     private CandidateProfileDto toDto(CandidateProfile profile) {
+        return toDto(profile, false);
+    }
+
+    @Transactional(readOnly = true)
+    public CandidateProfileDto findProfileForCompany(UUID userId) {
+        return toDto(getProfileOrThrow(userId), true);
+    }
+
+    private CandidateProfileDto toDto(CandidateProfile profile, boolean companyView) {
+        var preferences = profile.getUser().getPreferences();
         var expDtos = profile.getExperiences().stream()
                 .map(exp -> new CandidateExperienceDto(
                 exp.getId(),
@@ -453,12 +479,12 @@ public class CandidateProfileService {
                 profile.getId(),
                 profile.getUser().getId(),
                 profile.getUser().getName(),
-                profile.getUser().getEmail(),
-                profile.getProfileImageUrl(),
-                profile.getResumeUrl(),
+                !companyView || preferences.showEmail() ? profile.getUser().getEmail() : null,
+                !companyView || preferences.showPhoto() ? profile.getProfileImageUrl() : null,
+                !companyView || preferences.showResume() ? profile.getResumeUrl() : null,
                 profile.getHeadline(),
                 profile.getSummary(),
-                profile.getPhone(),
+                !companyView || preferences.showPhone() ? profile.getPhone() : null,
                 profile.getCity(),
                 profile.getState(),
                 profile.getInstitution(),

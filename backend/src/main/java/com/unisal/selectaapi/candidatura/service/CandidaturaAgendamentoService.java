@@ -1,12 +1,14 @@
 package com.unisal.selectaapi.candidatura.service;
 
-import java.net.URI;
-import java.time.Instant;
-import java.time.LocalDateTime;
+import com.unisal.selectaapi.mensageria.EmailUpdateType;
+
 import java.util.List;
 import java.util.UUID;
 
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.entity.VagaEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,25 +30,26 @@ public class CandidaturaAgendamentoService {
     private final CandidaturaService candidaturaService;
     private final UserRepository userRepository;
     private final CandidaturaMapper mapper;
-    private final NotificacaoService notificacaoService;
+    private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
-    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, NotificacaoService notificacaoService) {
+    public CandidaturaAgendamentoService(CandidaturaAgendamentoRepository agendamentoRepository, CandidaturaService candidaturaService, UserRepository userRepository, CandidaturaMapper mapper, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.agendamentoRepository = agendamentoRepository;
         this.candidaturaService = candidaturaService;
         this.userRepository = userRepository;
         this.mapper = mapper;
-        this.notificacaoService = notificacaoService;
+        this.tipoDeEtapaRepository = tipoDeEtapaRepository;
     }
 
     @Transactional
     public AgendamentoResponse criar(UUID empresaUserId, UUID candidaturaId, CreateAgendamentoDto dto) {
         Candidatura candidatura = candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
         validarCandidaturaAtiva(candidatura);
-        validarDados(candidatura, dto);
 
         User autor = buscarUsuario(empresaUserId);
+        var etapa = buscarEtapaValida(candidatura, dto.etapaId());
+
         CandidaturaAgendamento agendamento = new CandidaturaAgendamento(
-                candidatura, dto.etapa(), dto.titulo(), dto.mensagem(), dto.inicio(), dto.duracaoMinutos(),
+                candidatura, etapa, dto.titulo(), dto.mensagem(), dto.inicio(), dto.duracaoMinutos(),
                 dto.link(), autor.getId(), autor.getName());
 
         CandidaturaAgendamento salvo = agendamentoRepository.save(agendamento);
@@ -71,14 +74,14 @@ public class CandidaturaAgendamentoService {
             CreateAgendamentoDto dto) {
         Candidatura candidatura = candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
         validarCandidaturaAtiva(candidatura);
-        validarDados(candidatura, dto);
 
         CandidaturaAgendamento agendamento = buscar(candidaturaId, agendamentoId);
         if (agendamento.getStatus().isFinalizado()) {
             throw new BusinessException(HttpStatus.CONFLICT, "Este agendamento já foi encerrado");
         }
+        var etapa = buscarEtapaValida(candidatura, dto.etapaId());
 
-        agendamento.setEtapa(dto.etapa());
+        agendamento.setEtapa(etapa);
         agendamento.setTitulo(dto.titulo());
         agendamento.setMensagem(dto.mensagem());
         agendamento.setInicio(dto.inicio());
@@ -153,24 +156,33 @@ public class CandidaturaAgendamentoService {
         }
     }
 
-    private void validarDados(Candidatura candidatura, CreateAgendamentoDto dto) {
-        if (dto.etapa().isDepoisDe(candidatura.getEtapaAtual())) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST,
-                    "Não é possível agendar uma etapa futura. Etapa atual: "
-                            + candidatura.getEtapaAtual().getDescricao());
+    private TipoDeEtapa buscarEtapaValida(Candidatura candidatura, UUID etapaId) {
+        var etapa = tipoDeEtapaRepository.findById(etapaId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "A etapa informada não existe"));
+
+        var etapas = candidatura.getVaga().getEtapas();
+
+        int ordemEtapa = etapas.stream()
+                .filter(ve -> ve.getEtapa().getId().equals(etapa.getId()))
+                .mapToInt(VagaEtapa::getOrdem)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST, "A etapa informada não pertence a esta vaga"));
+
+        int ordemAtual = etapas.stream()
+                .filter(ve -> ve.getEtapa().getId().equals(candidatura.getEtapaAtual().getId()))
+                .mapToInt(VagaEtapa::getOrdem)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST, "A etapa atual não está configurada nesta vaga"));
+
+        if (ordemEtapa > ordemAtual) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST, "Não é possível agendar uma etapa futura");
         }
-        try {
-            URI uri = URI.create(dto.link());
-            if (!"http".equalsIgnoreCase(uri.getScheme()) && !"https".equalsIgnoreCase(uri.getScheme())
-                    || uri.getHost() == null) {
-                throw new IllegalArgumentException();
-            }
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "O link deve ser uma URL http ou https válida");
-        }
-        if (dto.inicio().isBefore(Instant.now())) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "O agendamento deve ser futuro");
-        }
+
+        return etapa;
     }
 
     private void validarPendente(CandidaturaAgendamento agendamento) {
@@ -181,6 +193,6 @@ public class CandidaturaAgendamentoService {
     }
 
     private void notificar(Candidatura candidatura, String mensagem, CandidaturaAgendamento agendamento) {
-        candidaturaService.notificarCandidato(candidatura, mensagem, agendamento);
+        candidaturaService.notificarCandidato(candidatura, mensagem, EmailUpdateType.APPOINTMENT, agendamento);
     }
 }

@@ -10,7 +10,7 @@ import com.unisal.selectaapi.candidatura.entity.StatusAgendamento;
 public record AgendamentoResponse(
         UUID id,
         UUID candidaturaId,
-        EtapaProcesso etapa,
+        UUID etapaId,
         String etapaDescricao,
         String titulo,
         String mensagem,

@@ -1,7 +1,10 @@
 package com.unisal.selectaapi.candidatura.service;
 
+import com.unisal.selectaapi.mensageria.EmailUpdateType;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -9,7 +12,12 @@ import com.unisal.selectaapi.company.service.CompanyMemberService;
 import com.unisal.selectaapi.notificacoes.NotificacoesRole;
 import com.unisal.selectaapi.notificacoes.dtos.PublishNotificacaoDto;
 import com.unisal.selectaapi.notificacoes.service.NotificacaoService;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import com.unisal.selectaapi.vagas.entity.Vaga;
+import com.unisal.selectaapi.vagas.entity.VagaEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
+import com.unisal.selectaapi.vagas.services.TipoDeEtapaService;
+import com.unisal.selectaapi.vagas.services.VagaService;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -52,6 +60,7 @@ public class CandidaturaService {
     private final RabbitTemplate rabbitTemplate;
     private final NotificacaoService notificacaoService;
     private final CompanyMemberService companyMemberService;
+    private final TipoDeEtapaRepository tipoDeEtapaRepository;
 
     public CandidaturaService(CandidaturaRepository candidaturaRepository,
                               CandidaturaHistoricoRepository historicoRepository,
@@ -61,7 +70,7 @@ public class CandidaturaService {
                               VagaRepository vagaRepository,
                               UserRepository userRepository,
                               CandidaturaMapper mapper,
-                              RabbitTemplate rabbitTemplate, NotificacaoService notificacaoService, CompanyMemberService companyMemberService) {
+                              RabbitTemplate rabbitTemplate, NotificacaoService notificacaoService, CompanyMemberService companyMemberService, TipoDeEtapaRepository tipoDeEtapaRepository) {
         this.candidaturaRepository = candidaturaRepository;
         this.historicoRepository = historicoRepository;
         this.feedbackRepository = feedbackRepository;
@@ -73,10 +82,15 @@ public class CandidaturaService {
         this.rabbitTemplate = rabbitTemplate;
         this.notificacaoService = notificacaoService;
         this.companyMemberService = companyMemberService;
+        this.tipoDeEtapaRepository = tipoDeEtapaRepository;
     }
+
+
 
     @Transactional
     public CandidaturaResponse candidatar(UUID userId, CreateCandidatura dto) {
+
+
 
         Vaga vaga = vagaRepository.findById(dto.vagaId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
@@ -93,21 +107,28 @@ public class CandidaturaService {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Você já se candidatou para esta vaga");
         }
+        var etapaInicial = vaga.getEtapas().stream()
+                .min(Comparator.comparingInt(VagaEtapa::getOrdem))
+                .map(VagaEtapa::getEtapa)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "Esta vaga não possui etapas configuradas"
+                ));
 
-        var candidatura = new Candidatura(vaga, candidato, dto.cartaApresentacao(), dto.curriculoUrl());
+        var candidatura = new Candidatura(vaga, candidato, dto.cartaApresentacao(), dto.curriculoUrl(), etapaInicial);
         var salva = candidaturaRepository.save(candidatura);
 
         registrarHistorico(
                 salva,
                 null,
-                EtapaProcesso.INSCRICAO,
+                etapaInicial,
                 null,
                 StatusCandidatura.EM_ANDAMENTO,
                 "Candidatura enviada pelo candidato",
                 candidato.getUser().getId(),
                 candidato.getUser().getName());
 
-        return mapper.toResponse(salva, 0);
+        return mapper.toResponse(salva, 0, false);
     }
 
     @Transactional(readOnly = true)
@@ -116,14 +137,14 @@ public class CandidaturaService {
                 .stream()
                 .map(candidatura -> mapper.toResponse(
                         candidatura,
-                        feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()).size()))
+                        feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()).size(), false))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public CandidaturaDetalheResponse detalharComoCandidato(UUID userId, UUID candidaturaId) {
         Candidatura candidatura = buscarComoCandidato(userId, candidaturaId);
-        return montarDetalhe(candidatura);
+        return montarDetalhe(candidatura, false);
     }
 
     @Transactional
@@ -153,7 +174,7 @@ public class CandidaturaService {
                 autor.getId(),
                 autor.getName());
 
-        return mapper.toResponse(salva, contarFeedbacks(salva.getId()));
+        return mapper.toResponse(salva, contarFeedbacks(salva.getId()), false);
     }
 
     // lado que a empresa usa
@@ -162,21 +183,26 @@ public class CandidaturaService {
     public List<CandidaturaResponse> listarCandidaturasDaEmpresa(UUID empresaId,
             UUID vagaId,
             StatusCandidatura status,
-            EtapaProcesso etapa,
+            UUID etapaId,
             String candidatoNome) {
 
+        TipoDeEtapa etapa = null;
+        if (etapaId != null) {
+            etapa = tipoDeEtapaRepository.findByIdDisponivelParaEmpresa(etapaId, empresaId)
+                    .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Etapa informada não existe"));
+        }
         var spec = CandidaturaSpecification.withFilters(empresaId, vagaId, status, etapa, candidatoNome);
 
         return candidaturaRepository.findAll(spec)
                 .stream()
-                .map(candidatura -> mapper.toResponse(candidatura, contarFeedbacks(candidatura.getId())))
+                .map(candidatura -> mapper.toResponse(candidatura, contarFeedbacks(candidatura.getId()), true))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public CandidaturaDetalheResponse detalharComoEmpresa(UUID empresaUserId, UUID candidaturaId) {
         Candidatura candidatura = buscarComoEmpresa(empresaUserId, candidaturaId);
-        return montarDetalhe(candidatura);
+        return montarDetalhe(candidatura, true);
     }
 
     @Transactional
@@ -188,44 +214,55 @@ public class CandidaturaService {
                     "Não é possível alterar a etapa de uma candidatura finalizada");
         }
 
-        EtapaProcesso etapaAnterior = candidatura.getEtapaAtual();
-        List<EtapaProcesso> fluxo = candidatura.getVaga().getEtapas().stream()
-            .map(etapa -> etapa.getEtapa())
-            .toList();
+        TipoDeEtapa etapaAnterior = candidatura.getEtapaAtual();
+
+        List<TipoDeEtapa> fluxo = candidatura.getVaga().getEtapas().stream()
+                .sorted(Comparator.comparingInt(VagaEtapa::getOrdem))
+                .map(VagaEtapa::getEtapa)
+                .toList();
 
         if (fluxo.isEmpty()) {
-            fluxo = EtapaProcesso.etapasConfiguraveisPadrao();
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "Esta vaga não possui etapas configuradas"
+            );
         }
 
-        int indiceEtapaAtual = fluxo.indexOf(etapaAnterior);
-        EtapaProcesso proximaEtapa = indiceEtapaAtual + 1 < fluxo.size()
+        int indiceEtapaAtual = java.util.stream.IntStream.range(0, fluxo.size())
+                .filter(i -> fluxo.get(i).getId().equals(etapaAnterior.getId()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
+                        "A etapa atual não está configurada nesta vaga"));
+        TipoDeEtapa proximaEtapa = indiceEtapaAtual + 1 < fluxo.size()
             ? fluxo.get(indiceEtapaAtual + 1)
             : null;
 
-        if (proximaEtapa == null || dto.etapa() != proximaEtapa) {
+        var etapaInformada = tipoDeEtapaRepository.findById(dto.etapaId()).orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "A etapa informada nao existe"));
+
+        if (proximaEtapa == null || !etapaInformada.getId().equals(proximaEtapa.getId())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST,
                 "A próxima etapa deve ser " + (proximaEtapa == null
                     ? "inexistente, pois o fluxo já foi concluído"
-                    : proximaEtapa.getDescricao()));
+                    : proximaEtapa.getNome()));
         }
 
-        candidatura.setEtapaAtual(dto.etapa());
+        candidatura.setEtapaAtual(etapaInformada);
         Candidatura salva = candidaturaRepository.save(candidatura);
         User autor = buscarUsuario(empresaUserId);
 
         registrarHistorico(
                 salva,
                 etapaAnterior,
-                dto.etapa(),
+                etapaInformada,
                 salva.getStatus(),
                 salva.getStatus(),
                 dto.observacao(),
                 autor.getId(),
                 autor.getName());
 
-        notificarCandidato(salva, dto.observacao());
+        notificarCandidato(salva, dto.observacao(), EmailUpdateType.STAGE, null);
 
-        return mapper.toResponse(salva, contarFeedbacks(salva.getId()));
+        return mapper.toResponse(salva, contarFeedbacks(salva.getId()), true);
     }
 
     @Transactional
@@ -243,14 +280,16 @@ public class CandidaturaService {
         }
 
         StatusCandidatura statusAnterior = candidatura.getStatus();
-        EtapaProcesso etapaAnterior = candidatura.getEtapaAtual();
+        TipoDeEtapa etapaAnterior = candidatura.getEtapaAtual();
 
         candidatura.setStatus(dto.status());
         candidatura.setMotivoEncerramento(dto.motivo());
         candidatura.setFinalizadaEm(Instant.now());
 
         if (dto.status() == StatusCandidatura.APROVADA) {
-            candidatura.setEtapaAtual(EtapaProcesso.CONTRATACAO);
+            var etapaFinal = tipoDeEtapaRepository.findByCodigoAndCompanyProfileIsNull(TipoDeEtapaService.ETAPA_FINAL)
+                                    .orElseThrow(()-> new BusinessException(HttpStatus.NOT_FOUND, "Etapa final não registrada"));
+            candidatura.setEtapaAtual(etapaFinal);
 
             // consome uma posição e fecha a vaga automaticamente quando acabarem
             Vaga vaga = candidatura.getVaga();
@@ -275,9 +314,9 @@ public class CandidaturaService {
                 autor.getId(),
                 autor.getName());
 
-        notificarCandidato(salva, dto.motivo());
+        notificarCandidato(salva, dto.motivo(), EmailUpdateType.DECISION, null);
 
-        return mapper.toResponse(salva, contarFeedbacks(salva.getId()));
+        return mapper.toResponse(salva, contarFeedbacks(salva.getId()), true);
     }
 
     public Candidatura buscarComoCandidato(UUID userId, UUID candidaturaId) {
@@ -292,11 +331,8 @@ public class CandidaturaService {
                         "Candidatura não encontrada para as vagas desta empresa"));
     }
 
-    public void notificarCandidato(Candidatura candidatura, String mensagem) {
-        notificarCandidato(candidatura, mensagem, null);
-    }
-
-    public void notificarCandidato(Candidatura candidatura, String mensagem, CandidaturaAgendamento agendamento) {
+    public void notificarCandidato(Candidatura candidatura, String mensagem, EmailUpdateType type,
+            CandidaturaAgendamento agendamento) {
         User candidato = candidatura.getCandidato().getUser();
 
         var request = new CandidaturaEmailRequest(
@@ -304,15 +340,18 @@ public class CandidaturaService {
                 candidato.getName(),
                 candidatura.getVaga().getTitulo(),
                 candidatura.getVaga().getEmpresa().getCompanyName(),
-                candidatura.getEtapaAtual().getDescricao(),
+                candidatura.getEtapaAtual().getNome(),
                 candidatura.getStatus().getDescricao(),
                 mensagem,
                 agendamento != null ? agendamento.getTitulo() : null,
                 agendamento != null ? agendamento.getInicio() : null,
                 agendamento != null ? agendamento.getDuracaoMinutos() : null,
-                agendamento != null ? agendamento.getLink() : null);
+                agendamento != null ? agendamento.getLink() : null,
+                candidato.getId(), type);
 
-        rabbitTemplate.convertAndSend("email.exchange", "candidatura.atualizacao.key", request);
+        if (type.enabled(candidato.getPreferences())) {
+            rabbitTemplate.convertAndSend("email.exchange", "candidatura.atualizacao.key", request);
+        }
 
         boolean temAgendamento = agendamento != null;
         if(temAgendamento) {
@@ -324,7 +363,7 @@ public class CandidaturaService {
         }
         else{
             String descricao = (mensagem == null || mensagem.isBlank())
-                    ? "Sua candidatura agora está na etapa: " + candidatura.getEtapaAtual().getDescricao() + "."
+                    ? "Sua candidatura agora está na etapa: " + candidatura.getEtapaAtual().getNome() + "."
                     : mensagem;
             notificacaoService.publicarNotificacao(candidatura.getCandidato().getUser().getId(),
                     new PublishNotificacaoDto("Atualização na Candidatura",
@@ -332,12 +371,12 @@ public class CandidaturaService {
         }
     }
 
-    private CandidaturaDetalheResponse montarDetalhe(Candidatura candidatura) {
+    private CandidaturaDetalheResponse montarDetalhe(Candidatura candidatura, boolean companyView) {
         return mapper.toDetalheResponse(
                 candidatura,
                 historicoRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()),
                 feedbackRepository.findByCandidaturaIdOrderByCreatedAtAsc(candidatura.getId()),
-                agendamentoRepository.findByCandidaturaIdOrderByInicioAsc(candidatura.getId()));
+                agendamentoRepository.findByCandidaturaIdOrderByInicioAsc(candidatura.getId()), companyView);
     }
 
     private long contarFeedbacks(UUID candidaturaId) {
@@ -345,8 +384,8 @@ public class CandidaturaService {
     }
 
     private void registrarHistorico(Candidatura candidatura,
-            EtapaProcesso etapaAnterior,
-            EtapaProcesso etapaNova,
+            TipoDeEtapa etapaAnterior,
+            TipoDeEtapa etapaNova,
             StatusCandidatura statusAnterior,
             StatusCandidatura statusNovo,
             String observacao,
@@ -389,4 +428,5 @@ public class CandidaturaService {
                     return candidateProfileRepository.save(profile);
                 });
     }
+
 }

@@ -116,6 +116,7 @@ public class EmbeddingTextBuilder {
         if (inicio == null) {
             return Boolean.TRUE.equals(atual) ? "atual" : "";
         }
+        
         YearMonth start = YearMonth.from(inicio.atZone(ZoneOffset.UTC));
         boolean isAtual = Boolean.TRUE.equals(atual) || fim == null;
         YearMonth end = isAtual ? YearMonth.now(ZoneOffset.UTC) : YearMonth.from(fim.atZone(ZoneOffset.UTC));

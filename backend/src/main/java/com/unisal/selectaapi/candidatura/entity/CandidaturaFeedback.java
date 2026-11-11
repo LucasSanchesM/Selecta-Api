@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -31,9 +32,9 @@ public class CandidaturaFeedback {
     @JoinColumn(name = "application_id", nullable = false)
     private Candidatura candidatura;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private EtapaProcesso etapa;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "etapa", nullable = false)
+    private TipoDeEtapa etapa;
 
     @Column(nullable = false)
     private String titulo;
@@ -61,7 +62,7 @@ public class CandidaturaFeedback {
     }
 
     public CandidaturaFeedback(Candidatura candidatura,
-            EtapaProcesso etapa,
+            TipoDeEtapa etapa,
             String titulo,
             String mensagem,
             Integer nota,
@@ -103,11 +104,11 @@ public class CandidaturaFeedback {
         this.candidatura = candidatura;
     }
 
-    public EtapaProcesso getEtapa() {
+    public TipoDeEtapa getEtapa() {
         return etapa;
     }
 
-    public void setEtapa(EtapaProcesso etapa) {
+    public void setEtapa(TipoDeEtapa etapa) {
         this.etapa = etapa;
     }
 

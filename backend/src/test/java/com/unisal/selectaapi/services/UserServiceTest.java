@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import com.unisal.selectaapi.candidate.service.CandidateProfileService;
 import com.unisal.selectaapi.auth.dtos.VerifyEmailDto;
 import com.unisal.selectaapi.auth.entity.VerificationCode;
 import com.unisal.selectaapi.auth.service.VerificationCodeService;
@@ -49,6 +50,9 @@ import com.unisal.selectaapi.user.entity.User;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
+    @Mock
+    private CandidateProfileService candidateProfiles;
+
     @Mock
     private UserRepository userRepository;
 
@@ -91,6 +95,19 @@ public class UserServiceTest {
 
     @Nested
     class createUser{
+        @Test
+        void createsInitialProfileForRegisteredCandidate() {
+            var profile = new CreateUserDto.InitialProfile("Estágio · Design", "Lorena", "SP");
+            var input = new CreateUserDto("Maria", "maria@example.org", "password", UserRole.CANDIDATE, profile);
+            when(userRepository.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
+
+            userService.createUser(input);
+
+            verify(userRepository).save(userArgumentCaptor.capture());
+            verify(candidateProfiles).createRegistrationProfile(userArgumentCaptor.getValue(),
+                    profile.headline(), profile.city(), profile.state());
+        }
+
         @Test
         @DisplayName("Should create user successfully")
         void shoulCreateUserWithSucess(){

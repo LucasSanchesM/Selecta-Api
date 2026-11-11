@@ -24,21 +24,21 @@ import com.unisal.selectaapi.vagas.dto.EtapaVagaResponse;
 @Component
 public class CandidaturaMapper {
 
-    public CandidaturaResponse toResponse(Candidatura candidatura, long totalFeedbacks) {
+    public CandidaturaResponse toResponse(Candidatura candidatura, long totalFeedbacks, boolean companyView) {
         Vaga vaga = candidatura.getVaga();
         CompanyProfile empresa = vaga.getEmpresa();
         CandidateProfile candidato = candidatura.getCandidato();
+        var preferences = candidato.getUser().getPreferences();
         List<VagaEtapa> etapasConfiguradas = vaga.getEtapas().stream()
             .sorted(Comparator.comparing(VagaEtapa::getOrdem))
             .toList();
-        List<EtapaVagaResponse> etapasVaga = etapasConfiguradas.isEmpty()
-            ? EtapaProcesso.etapasConfiguraveisPadrao().stream()
-                .map((etapa) -> new EtapaVagaResponse(
-                    etapa, etapa.getDescricao(), EtapaProcesso.etapasConfiguraveisPadrao().indexOf(etapa) + 1))
-                .toList()
-            : etapasConfiguradas.stream()
-                .map((etapa) -> new EtapaVagaResponse(
-                    etapa.getEtapa(), etapa.getEtapa().getDescricao(), etapa.getOrdem()))
+        List<EtapaVagaResponse> etapasVaga = etapasConfiguradas.stream()
+                .map(etapa -> new EtapaVagaResponse(
+                        etapa.getEtapa().getId(),
+                        etapa.getEtapa().getNome(),
+                        etapa.getEtapa().getDescricao(),
+                        etapa.getOrdem()
+                ))
                 .toList();
 
         return new CandidaturaResponse(
@@ -51,16 +51,16 @@ public class CandidaturaMapper {
                 candidato.getId(),
                 candidato.getUser().getId(),
                 candidato.getUser().getName(),
-                candidato.getUser().getEmail(),
+                !companyView || preferences.showEmail() ? candidato.getUser().getEmail() : null,
                 candidato.getHeadline(),
-                candidato.getProfileImageUrl(),
-                candidatura.getEtapaAtual(),
-                candidatura.getEtapaAtual().getDescricao(),
+                !companyView || preferences.showPhoto() ? candidato.getProfileImageUrl() : null,
+                candidatura.getEtapaAtual().getId(),
+                candidatura.getEtapaAtual().getNome(),
                 etapasVaga,
                 candidatura.getStatus(),
                 candidatura.getStatus().getDescricao(),
                 candidatura.getCartaApresentacao(),
-                candidatura.getCurriculoUrl(),
+                !companyView || preferences.showResume() ? candidatura.getCurriculoUrl() : null,
                 candidatura.getMotivoEncerramento(),
                 totalFeedbacks,
                 candidatura.getFinalizadaEm(),
@@ -71,10 +71,10 @@ public class CandidaturaMapper {
     public CandidaturaDetalheResponse toDetalheResponse(Candidatura candidatura,
             List<CandidaturaHistorico> historico,
             List<CandidaturaFeedback> feedbacks,
-            List<CandidaturaAgendamento> agendamentos) {
+            List<CandidaturaAgendamento> agendamentos, boolean companyView) {
 
         return new CandidaturaDetalheResponse(
-                toResponse(candidatura, feedbacks.size()),
+                toResponse(candidatura, feedbacks.size(), companyView),
                 historico.stream().map(this::toHistoricoResponse).toList(),
                 feedbacks.stream().map(this::toFeedbackResponse).toList(),
                 agendamentos.stream().map(this::toAgendamentoResponse).toList());
@@ -85,7 +85,7 @@ public class CandidaturaMapper {
                 historico.getId(),
                 historico.getEtapaAnterior(),
                 historico.getEtapaNova(),
-                historico.getEtapaNova().getDescricao(),
+                historico.getEtapaNova().getNome(),
                 historico.getStatusAnterior(),
                 historico.getStatusNovo(),
                 historico.getObservacao(),
@@ -97,8 +97,8 @@ public class CandidaturaMapper {
         return new FeedbackResponse(
                 feedback.getId(),
                 feedback.getCandidatura().getId(),
-                feedback.getEtapa(),
-                feedback.getEtapa().getDescricao(),
+                feedback.getEtapa().getId(),
+                feedback.getEtapa().getNome(),
                 feedback.getTitulo(),
                 feedback.getMensagem(),
                 feedback.getNota(),
@@ -111,8 +111,8 @@ public class CandidaturaMapper {
         return new AgendamentoResponse(
                 agendamento.getId(),
                 agendamento.getCandidatura().getId(),
-                agendamento.getEtapa(),
-                agendamento.getEtapa().getDescricao(),
+                agendamento.getEtapa().getId(),
+                agendamento.getEtapa().getNome(),
                 agendamento.getTitulo(),
                 agendamento.getMensagem(),
                 agendamento.getInicio(),

@@ -4,19 +4,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "application_appointments")
@@ -30,9 +19,9 @@ public class CandidaturaAgendamento {
     @JoinColumn(name = "application_id", nullable = false)
     private Candidatura candidatura;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private EtapaProcesso etapa;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "etapa", nullable = false)
+    private TipoDeEtapa etapa;
 
     @Column(nullable = false, length = 150)
     private String titulo;
@@ -71,7 +60,7 @@ public class CandidaturaAgendamento {
     public CandidaturaAgendamento() {
     }
 
-    public CandidaturaAgendamento(Candidatura candidatura, EtapaProcesso etapa, String titulo,
+    public CandidaturaAgendamento(Candidatura candidatura, TipoDeEtapa etapa, String titulo,
             String mensagem, Instant inicio, Integer duracaoMinutos, String link,
             UUID criadoPorUserId, String criadoPorNome) {
         this.candidatura = candidatura;
@@ -102,7 +91,7 @@ public class CandidaturaAgendamento {
 
     public UUID getId() { return id; }
     public Candidatura getCandidatura() { return candidatura; }
-    public EtapaProcesso getEtapa() { return etapa; }
+    public TipoDeEtapa getEtapa() { return etapa; }
     public String getTitulo() { return titulo; }
     public String getMensagem() { return mensagem; }
     public Instant getInicio() { return inicio; }
@@ -115,7 +104,7 @@ public class CandidaturaAgendamento {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
-    public void setEtapa(EtapaProcesso etapa) { this.etapa = etapa; }
+    public void setEtapa(TipoDeEtapa etapa) { this.etapa = etapa; }
     public void setTitulo(String titulo) { this.titulo = titulo; }
     public void setMensagem(String mensagem) { this.mensagem = mensagem; }
     public void setInicio(Instant inicio) { this.inicio = inicio; }

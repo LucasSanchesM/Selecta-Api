@@ -3,6 +3,7 @@ package com.unisal.selectaapi.candidatura;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.unisal.selectaapi.candidatura.entity.Candidatura;
@@ -23,7 +24,7 @@ public class CandidaturaSpecification {
             UUID empresaId,
             UUID vagaId,
             StatusCandidatura status,
-            EtapaProcesso etapa,
+            TipoDeEtapa etapa,
             String candidatoNome) {
 
         return (root, query, builder) -> {

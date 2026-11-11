@@ -82,6 +82,7 @@ public class VagaRecomendacaoService {
                 SELECT ce.embedding::text AS vetor, p.city, p.state
                 FROM candidate_embeddings ce
                 JOIN candidate_profiles p ON p.id = ce.candidate_profile_id
+                JOIN users u ON u.id = p.user_id AND u.personalized_jobs AND u.excluido_at IS NULL
                 WHERE p.user_id = :userId AND ce.model = :model
                 """, params, (rs, rowNum) -> new PerfilVetorial(
                 rs.getString("vetor"), rs.getString("city"), rs.getString("state")));
@@ -120,6 +121,9 @@ public class VagaRecomendacaoService {
         if (filtro.modalidade() != null) {
             condicoes.add("j.modalidade = :modalidade");
             params.addValue("modalidade", filtro.modalidade().name());
+        }
+        if (filtro.salarioMin() != null || filtro.salarioMax() != null) {
+            condicoes.add("j.salario > 0");
         }
         if (filtro.salarioMin() != null) {
             condicoes.add("j.salario >= :salarioMin");

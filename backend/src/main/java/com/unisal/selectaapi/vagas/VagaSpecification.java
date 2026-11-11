@@ -44,6 +44,10 @@ public class VagaSpecification {
                 predicates.add(cb.equal(root.get("modalidade"), modalidade));
             }
 
+            if (salarioMin != null || salarioMax != null) {
+                predicates.add(cb.greaterThan(root.get("salario"), BigDecimal.ZERO));
+            }
+
             if (salarioMin != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("salario"), salarioMin));
             }

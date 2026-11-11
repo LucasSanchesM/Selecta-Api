@@ -18,6 +18,15 @@ public class EmbeddingRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public boolean lockEligibleCandidate(UUID profileId) {
+        return !jdbcTemplate.queryForList("""
+                SELECT u.id FROM users u
+                JOIN candidate_profiles p ON p.user_id = u.id
+                WHERE p.id = ? AND u.personalized_jobs AND u.excluido_at IS NULL
+                FOR SHARE OF u
+                """, UUID.class, profileId).isEmpty();
+    }
+
     public Optional<String> findContentHash(EmbeddingTarget target, UUID id) {
         var table = Table.of(target);
         List<String> hashes = jdbcTemplate.queryForList(
@@ -73,6 +82,7 @@ public class EmbeddingRepository {
         return jdbcTemplate.queryForList("""
                 SELECT p.id
                 FROM candidate_profiles p
+                JOIN users u ON u.id = p.user_id AND u.personalized_jobs AND u.excluido_at IS NULL
                 LEFT JOIN candidate_embeddings e ON e.candidate_profile_id = p.id
                 WHERE (e.candidate_profile_id IS NULL
                        OR e.model <> ?

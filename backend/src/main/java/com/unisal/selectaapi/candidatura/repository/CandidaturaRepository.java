@@ -15,6 +15,8 @@ import com.unisal.selectaapi.candidatura.entity.StatusCandidatura;
 public interface CandidaturaRepository
         extends JpaRepository<Candidatura, UUID>, JpaSpecificationExecutor<Candidatura> {
 
+    boolean existsByCandidatoUserIdAndVagaEmpresaId(UUID userId, UUID companyId);
+
     boolean existsByVagaIdAndCandidatoUserId(UUID vagaId, UUID userId);
 
     Optional<Candidatura> findByIdAndCandidatoUserId(UUID id, UUID userId);
