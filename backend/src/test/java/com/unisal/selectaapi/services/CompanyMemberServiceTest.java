@@ -140,7 +140,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 criarEmpresa()
         );
 
@@ -174,7 +174,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 criarEmpresa()
         );
 
@@ -261,7 +261,7 @@ class CompanyMemberServiceTest {
                 "Novo",
                 "novo@email.com",
                 "123456",
-                CompanyMemberRole.MEMBER
+                CompanyMemberRole.RECRUTADOR
         );
 
         var resultado = service.criarMembro(ownerId, dto);
@@ -269,7 +269,7 @@ class CompanyMemberServiceTest {
         // Conferimos os dados retornados pela DTO.
         assertEquals("Novo", resultado.name());
         assertEquals("novo@email.com", resultado.email());
-        assertEquals(CompanyMemberRole.MEMBER.name(), resultado.role());
+        assertEquals(CompanyMemberRole.RECRUTADOR.name(), resultado.role());
         assertTrue(resultado.active());
         assertFalse(resultado.voce());
 
@@ -306,7 +306,7 @@ class CompanyMemberServiceTest {
                 "Novo",
                 "novo@email.com",
                 "123456",
-                CompanyMemberRole.MEMBER
+                CompanyMemberRole.RECRUTADOR
         );
 
         // O serviço deve impedir a criação.
@@ -327,7 +327,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 criarEmpresa()
         );
 
@@ -344,7 +344,7 @@ class CompanyMemberServiceTest {
                 "Novo",
                 "novo@email.com",
                 "123456",
-                CompanyMemberRole.MEMBER
+                CompanyMemberRole.RECRUTADOR
         );
 
         // Esperamos uma exceção por falta de permissão.
@@ -368,7 +368,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
@@ -397,7 +397,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
@@ -430,7 +430,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
@@ -460,7 +460,7 @@ class CompanyMemberServiceTest {
         );
 
         // A role do membro continua sendo MEMBER.
-        assertEquals(CompanyMemberRole.MEMBER, member.getRole());
+        assertEquals(CompanyMemberRole.RECRUTADOR, member.getRole());
     }
 
     // ---------------------------------------------------------
@@ -475,7 +475,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
@@ -541,13 +541,13 @@ class CompanyMemberServiceTest {
 
         CompanyMember target = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
         CompanyMember outroMembro = criarMembro(
                 adminId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
@@ -599,7 +599,7 @@ class CompanyMemberServiceTest {
 
         CompanyMember member = criarMembro(
                 memberId,
-                CompanyMemberRole.MEMBER,
+                CompanyMemberRole.RECRUTADOR,
                 company
         );
 
