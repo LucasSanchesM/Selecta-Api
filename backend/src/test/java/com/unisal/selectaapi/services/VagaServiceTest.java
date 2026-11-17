@@ -7,6 +7,9 @@ import com.unisal.selectaapi.exception.BusinessException;
 import com.unisal.selectaapi.geo.EnderecoDto;
 import com.unisal.selectaapi.geo.GeoCodingService;
 import com.unisal.selectaapi.vagas.dto.UpdateVaga;
+import com.unisal.selectaapi.vagas.entity.TipoDeEtapa;
+import com.unisal.selectaapi.vagas.entity.VagaEtapa;
+import com.unisal.selectaapi.vagas.repository.TipoDeEtapaRepository;
 import com.unisal.selectaapi.vagas.repository.VagaRepository;
 import com.unisal.selectaapi.vagas.VagaRole;
 import com.unisal.selectaapi.vagas.dto.CreateVagaDto;
@@ -30,10 +33,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,6 +47,9 @@ public class VagaServiceTest {
 
     @Mock
     private CompanyProfileRepository companyProfileRepository;
+
+    @Mock
+    private TipoDeEtapaRepository tipoDeEtapaRepository;
 
     @Mock
     private GeoCodingService geoCodingService;
@@ -69,6 +72,9 @@ public class VagaServiceTest {
         //Pra facilitar vou utilizar esses registros de empresa e dto quando necessário nos testes
         private CompanyProfile empresa;
         private CreateVagaDto dto;
+        private List<TipoDeEtapa> etapasPadrao;
+
+
         @BeforeEach
         void setUp(){
             var id = UUID.randomUUID();
@@ -85,6 +91,13 @@ public class VagaServiceTest {
             empresa.setLatitude(-23.5505);
             empresa.setLongitude(-46.6333);
 
+            var etapa1 = new TipoDeEtapa(empresa, "INSCRICAO", "teste");
+            var etapa2 = new TipoDeEtapa(empresa, "INTERMEDIARIA", "teste");
+            var etapa3 = new TipoDeEtapa(empresa, "ENCERRADA", "teste");
+
+            etapasPadrao = List.of(etapa1, etapa2, etapa3);
+
+
             dto = new CreateVagaDto(
                     "Desenvolvedor Backend Java",
                     new BigDecimal("5000.00"),
@@ -96,7 +109,7 @@ public class VagaServiceTest {
                     ModalidadeVaga.PRESENCIAL,
                     -23.5505,
                     -46.6333,
-                    List.of(EtapaProcesso.ENTREVISTA_TECNICA, EtapaProcesso.ENTREVISTA_RH)
+                    Collections.emptyList()
             );
         }
 
@@ -104,7 +117,24 @@ public class VagaServiceTest {
         @DisplayName("Should create a vaga successfully")
         void shouldCreateAVagaSuccessfully(){
             //===== ARRANGE =======
-            var input = dto;
+            var etapa1 = new TipoDeEtapa(empresa, "Teste Tecnico", "testeDescricaoTech");
+            var etapa2 = new TipoDeEtapa(empresa, "ENTREVISTA", "testeDescricao");
+            etapa1.setId(UUID.randomUUID());
+            etapa2.setId(UUID.randomUUID());
+            var input = new CreateVagaDto(
+                    "Desenvolvedor Backend Java",
+                    new BigDecimal("5000.00"),
+                    2,
+                    "Vaga para desenvolvedor backend com experiência em Spring Boot",
+                    "Vale alimentação, plano de saúde, home office",
+                    empresa.getId(),
+                    VagaRole.DESENVOLVIMENTO_SOFTWARE,
+                    ModalidadeVaga.PRESENCIAL,
+                    -23.5505,
+                    -46.6333,
+                    List.of(etapa1.getId(), etapa2.getId())
+            );
+
             doReturn(Optional.of(empresa)).when(companyProfileRepository).findById(input.companyProfileId());
             var endereco = new EnderecoDto("Lorena", "SP");
             doReturn(endereco).when(geoCodingService).retornarEndereco(input.latitude(), input.longitude());
@@ -112,6 +142,10 @@ public class VagaServiceTest {
                return chamado.getArgument(0);
             });
 
+            doReturn(Optional.of(etapasPadrao.getFirst())).when(tipoDeEtapaRepository).findByCodigoAndCompanyProfileIsNull("INSCRICAO");
+            doReturn(Optional.of(etapasPadrao.getLast())).when(tipoDeEtapaRepository).findByCodigoAndCompanyProfileIsNull("ENCERRADA");
+
+            doReturn(List.of(etapa1, etapa2)).when(tipoDeEtapaRepository).findAllById(any());
             //===== ACT =======
             var response = vagaService.createVaga(input);
 
@@ -141,17 +175,13 @@ public class VagaServiceTest {
             assertEquals(input.modalidade(), vagaCaptured.getModalidade());
             assertEquals(input.latitude(), vagaCaptured.getLatitude());
             assertEquals(input.longitude(), vagaCaptured.getLongitude());
-            assertEquals(input.etapas().size(), vagaCaptured.getEtapas().size());
 
-            //Pega lista de etapas salva no banco
-            var etapas = vagaCaptured.getEtapas().stream().map(etapa -> etapa.getEtapa()).toList();
-
-            assertEquals(input.etapas(), etapas);
+            //Aqui ele vai validar se etapas retornada estao corretas, isto é se ele pegou as etapas intemerdiarias e adicionou ao conjunto das duas restantes (incrição e encerrada)
+            assertEquals(input.etapasId().size() + 2, vagaCaptured.getEtapas().size());
 
             //Verifica se cidade e estado salvo sao os corretos
             assertEquals("Lorena", vagaCaptured.getCidade());
             assertEquals("SP", vagaCaptured.getEstado());
-
 
             //Assegura que o foi retornado bate com o inserido no metodo
             assertEquals(input.titulo(), response.titulo());
@@ -203,14 +233,15 @@ public class VagaServiceTest {
                     ModalidadeVaga.PRESENCIAL,
                     -23.5505,
                     -46.6333,
-                     List.of(EtapaProcesso.INSCRICAO, EtapaProcesso.ENTREVISTA_RH, EtapaProcesso.CONTRATACAO)
+                     null
             );
             doReturn(Optional.of(empresa)).when(companyProfileRepository).findById(input.companyProfileId());
             var endereco = new EnderecoDto("Lorena", "SP");
             doReturn(endereco).when(geoCodingService).retornarEndereco(input.latitude(), input.longitude());
 
+
             //===== ACT =======
-            var response = assertThrows(BusinessException.class, ()-> vagaService.createVaga(input));
+            var response = assertThrows(IllegalStateException.class, ()-> vagaService.createVaga(input));
 
             //===== ASSERT =======
             verify(companyProfileRepository, times(1)).findById(uuidArgumentCaptor.capture());
@@ -224,7 +255,7 @@ public class VagaServiceTest {
 
             verify(vagaRepository, never()).save(any(Vaga.class));
 
-            assertEquals("A vaga deve possuir etapas configuráveis distintas, sem INSCRICAO ou CONTRATACAO", response.getMessage());
+            assertEquals("Etapa inicial INSCRICAO não cadastrada", response.getMessage());
 
 
         }
@@ -251,6 +282,13 @@ public class VagaServiceTest {
             when(vagaRepository.save(any(Vaga.class))).thenAnswer(chamado ->{
                 return chamado.getArgument(0);
             });
+
+            doReturn(Optional.of(etapasPadrao.getFirst())).when(tipoDeEtapaRepository).findByCodigoAndCompanyProfileIsNull("INSCRICAO");
+            doReturn(Optional.of(etapasPadrao.getLast())).when(tipoDeEtapaRepository).findByCodigoAndCompanyProfileIsNull("ENCERRADA");
+
+            doReturn(List.of(etapasPadrao.get(1))).when(tipoDeEtapaRepository).findAllSystemEtapas();
+
+
 
             //===== ACT =======
             var response = vagaService.createVaga(input);
@@ -285,12 +323,7 @@ public class VagaServiceTest {
             //Pega lista de etapas salva no banco
             var etapas = vagaCaptured.getEtapas().stream().map(etapa -> etapa.getEtapa()).toList();
 
-            var etapasPadrao = List.of( EtapaProcesso.TRIAGEM,
-                                        EtapaProcesso.ENTREVISTA_RH,
-                                        EtapaProcesso.TESTE_TECNICO,
-                                        EtapaProcesso.ENTREVISTA_TECNICA,
-                                        EtapaProcesso.PROPOSTA);
-            assertEquals(etapasPadrao, etapas);
+            assertIterableEquals(etapasPadrao, etapas);
 
             //Verifica se cidade e estado salvo sao os corretos
             assertEquals("Lorena", vagaCaptured.getCidade());
