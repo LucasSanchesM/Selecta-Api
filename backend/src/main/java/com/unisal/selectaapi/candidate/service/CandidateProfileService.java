@@ -61,8 +61,10 @@ public class CandidateProfileService {
     }
 
     @Transactional
-    public void createRegistrationProfile(User user, String headline, String city, String state) {
-        var profile = new CandidateProfile(user);
+    public void createRegistrationProfile(User user, String headline, String city, String state, String cpf) {
+        var cpfF = formatarCpf(cpf);
+        validarCpf(cpfF);
+        var profile = new CandidateProfile(user, cpfF);
         profile.setHeadline(headline);
         profile.setCity(city);
         profile.setState(state);
@@ -80,8 +82,9 @@ public class CandidateProfileService {
         if (!"CANDIDATE".equals(user.getRole())) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "Apenas candidatos podem criar perfis");
         }
-        
-        CandidateProfile profile = new CandidateProfile(user);
+        var cpfF = formatarCpf(dto.cpf());
+        validarCpf(cpfF);
+        CandidateProfile profile = new CandidateProfile(user, cpfF);
         profile.setProfileImageUrl(user.getAvatarUrl());
         profile.setHeadline(dto.headline());
         profile.setSummary(dto.summary());
@@ -177,6 +180,14 @@ public class CandidateProfileService {
         }
         if (dto.skills() != null) {
             profile.setSkills(new ArrayList<>(dto.skills()));
+        }
+
+        if (dto.cpf() != null) {
+            var novoCpf = formatarCpf(dto.cpf());
+            if (!novoCpf.equals(profile.getCpf())) {
+                validarCpf(novoCpf);
+                profile.setCpf(novoCpf);
+            }
         }
 
         CandidateProfile saved = candidateProfileRepository.save(profile);
@@ -449,6 +460,16 @@ public class CandidateProfileService {
     @Transactional(readOnly = true)
     public CandidateProfileDto findProfileForCompany(UUID userId) {
         return toDto(getProfileOrThrow(userId), true);
+    }
+
+    private void validarCpf(String cpf){
+        if(candidateProfileRepository.existsByCpf(cpf)){
+            throw new BusinessException(HttpStatus.CONFLICT, "Cpf ja existente");
+        };
+    }
+
+    private String formatarCpf(String cpf){
+        return cpf.replaceAll("\\D", "");
     }
 
     private CandidateProfileDto toDto(CandidateProfile profile, boolean companyView) {

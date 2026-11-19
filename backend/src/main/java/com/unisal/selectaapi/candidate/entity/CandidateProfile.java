@@ -41,6 +41,17 @@ public class CandidateProfile {
     @Column(columnDefinition = "TEXT")
     private String summary;
 
+    @Column(name = "cpf", length = 11, nullable = false, unique = true)
+    private String cpf;
+
+    public String getCpf() {
+        return cpf;
+    }
+
+    public void setCpf(String cpf) {
+        this.cpf = cpf;
+    }
+
     private String phone;
     private String city;
     private String state;
@@ -95,11 +106,13 @@ public class CandidateProfile {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public CandidateProfile() {
+    public CandidateProfile(String cpf) {
+        this.cpf = cpf;
     }
 
-    public CandidateProfile(User user) {
+    public CandidateProfile(User user, String cpf) {
         this.user = user;
+        this.cpf = cpf;
     }
 
     @PrePersist
