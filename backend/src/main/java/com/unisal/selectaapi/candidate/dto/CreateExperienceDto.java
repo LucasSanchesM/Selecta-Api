@@ -13,7 +13,7 @@ public record CreateExperienceDto(
     String role,
 
     String description,
-    Instant startDate,
-    Instant endDate,
+    LocalDate startDate,
+    LocalDate endDate,
     Boolean isCurrent
 ) {}

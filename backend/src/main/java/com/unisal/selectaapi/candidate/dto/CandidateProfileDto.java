@@ -27,6 +27,8 @@ public record CandidateProfileDto(
     List<String> skills,
     List<CandidateExperienceDto> experiences,
     List<CandidateProjectDto> projects,
+    List<CandidateCertificateDto> certificates,
+    List<CandidateLanguageDto> languages,
     Instant createdAt,
     Instant updatedAt
 ) {}

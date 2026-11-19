@@ -96,6 +96,7 @@ r2:
   bucket: ${R2_BUCKET:}
   resume-bucket: ${R2_RESUME_BUCKET:}
   public-base-url: ${R2_PUBLIC_BASE_URL:}
+  region: ${R2_REGION:auto}
 
 resend:
   api:

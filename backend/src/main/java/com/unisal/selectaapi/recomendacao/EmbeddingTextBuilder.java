@@ -1,6 +1,6 @@
 package com.unisal.selectaapi.recomendacao;
 
-import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -43,7 +43,7 @@ public class EmbeddingTextBuilder {
 
         List<CandidateExperience> experiencias = profile.getExperiences().stream()
                 .sorted(Comparator.comparing(
-                        (CandidateExperience exp) -> Boolean.TRUE.equals(exp.getIsCurrent()) ? Instant.MAX : nullSafe(exp.getEndDate()))
+                        (CandidateExperience exp) -> Boolean.TRUE.equals(exp.getIsCurrent()) ? LocalDate.MAX : nullSafe(exp.getEndDate()))
                         .reversed())
                 .limit(MAX_ITEMS)
                 .toList();
@@ -79,6 +79,17 @@ public class EmbeddingTextBuilder {
             }
         }
 
+        appendLine(text, "Idiomas", profile.getLanguages().stream()
+                .map(l -> joinNonBlank(" ", l.getLanguage(),
+                        l.getProficiency() != null ? "(" + humanize(l.getProficiency().name()) + ")" : null))
+                .limit(MAX_ITEMS)
+                .collect(Collectors.joining(", ")));
+
+        appendLine(text, "Certificados", profile.getCertificates().stream()
+                .limit(MAX_ITEMS)
+                .map(c -> joinNonBlank(" - ", c.getName(), c.getIssuer()))
+                .collect(Collectors.joining("; ")));
+
         appendLine(text, "Localização", joinNonBlank(" - ", profile.getCity(), profile.getState()));
 
         return truncate(text.toString().trim(), MAX_TOTAL_CHARS);
@@ -108,18 +119,18 @@ public class EmbeddingTextBuilder {
         return truncate(text.toString().trim(), MAX_TOTAL_CHARS);
     }
 
-    private static Instant nullSafe(Instant instant) {
-        return instant == null ? Instant.EPOCH : instant;
+    private static LocalDate nullSafe(LocalDate date) {
+        return date == null ? LocalDate.EPOCH : date;
     }
 
-    private static String periodo(Instant inicio, Instant fim, Boolean atual) {
+    private static String periodo(LocalDate inicio, LocalDate fim, Boolean atual) {
         if (inicio == null) {
             return Boolean.TRUE.equals(atual) ? "atual" : "";
         }
-        
-        YearMonth start = YearMonth.from(inicio.atZone(ZoneOffset.UTC));
+
+        YearMonth start = YearMonth.from(inicio);
         boolean isAtual = Boolean.TRUE.equals(atual) || fim == null;
-        YearMonth end = isAtual ? YearMonth.now(ZoneOffset.UTC) : YearMonth.from(fim.atZone(ZoneOffset.UTC));
+        YearMonth end = isAtual ? YearMonth.now(ZoneOffset.UTC) : YearMonth.from(fim);
 
         long meses = Math.max(ChronoUnit.MONTHS.between(start, end), 0);
         String duracao = meses >= 12

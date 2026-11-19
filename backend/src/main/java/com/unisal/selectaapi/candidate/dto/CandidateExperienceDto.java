@@ -10,8 +10,8 @@ public record CandidateExperienceDto(
     String companyName,
     String role,
     String description,
-    Instant startDate,
-    Instant endDate,
+    LocalDate startDate,
+    LocalDate endDate,
     Boolean isCurrent,
     Instant createdAt
 ) {}

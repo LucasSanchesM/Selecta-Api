@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.unisal.selectaapi.candidate.entity.CandidateProfile;
 import com.unisal.selectaapi.candidatura.dto.CandidaturaDetalheResponse;
 import com.unisal.selectaapi.candidatura.dto.CandidaturaResponse;
+import com.unisal.selectaapi.candidatura.dto.AgendamentoEmpresaResponse;
 import com.unisal.selectaapi.candidatura.dto.AgendamentoResponse;
 import com.unisal.selectaapi.candidatura.dto.FeedbackResponse;
 import com.unisal.selectaapi.candidatura.dto.HistoricoResponse;
@@ -111,6 +112,40 @@ public class CandidaturaMapper {
         return new AgendamentoResponse(
                 agendamento.getId(),
                 agendamento.getCandidatura().getId(),
+                agendamento.getEtapa().getId(),
+                agendamento.getEtapa().getNome(),
+                agendamento.getTitulo(),
+                agendamento.getMensagem(),
+                agendamento.getInicio(),
+                agendamento.getDuracaoMinutos(),
+                agendamento.getLink(),
+                agendamento.getStatus(),
+                agendamento.getStatus().getDescricao(),
+                agendamento.getCriadoPorUserId(),
+                agendamento.getCriadoPorNome(),
+                agendamento.getMotivoCancelamento(),
+                agendamento.getCreatedAt(),
+                agendamento.getUpdatedAt());
+    }
+
+    /** Linha da listagem geral da empresa: reunião + candidato + vaga (respeitando a privacidade do candidato). */
+    public AgendamentoEmpresaResponse toAgendamentoEmpresaResponse(CandidaturaAgendamento agendamento) {
+        Candidatura candidatura = agendamento.getCandidatura();
+        CandidateProfile candidato = candidatura.getCandidato();
+        var user = candidato.getUser();
+        var preferences = user.getPreferences();
+
+        return new AgendamentoEmpresaResponse(
+                agendamento.getId(),
+                candidatura.getId(),
+                candidatura.getStatus(),
+                candidatura.getVaga().getId(),
+                candidatura.getVaga().getTitulo(),
+                user.getId(),
+                user.getName(),
+                preferences.showEmail() ? user.getEmail() : null,
+                candidato.getHeadline(),
+                preferences.showPhoto() ? candidato.getProfileImageUrl() : null,
                 agendamento.getEtapa().getId(),
                 agendamento.getEtapa().getNome(),
                 agendamento.getTitulo(),

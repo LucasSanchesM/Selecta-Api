@@ -89,6 +89,22 @@ public class CandidateProfile {
     )
     private List<CandidateProject> projects = new ArrayList<>();
 
+    @OneToMany(
+        mappedBy = "candidateProfile",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.LAZY
+    )
+    private List<CandidateCertificate> certificates = new ArrayList<>();
+
+    @OneToMany(
+        mappedBy = "candidateProfile",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.LAZY
+    )
+    private List<CandidateLanguage> languages = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -279,6 +295,14 @@ public class CandidateProfile {
 
     public void setProjects(List<CandidateProject> projects) {
         this.projects = projects;
+    }
+
+    public List<CandidateCertificate> getCertificates() {
+        return certificates;
+    }
+
+    public List<CandidateLanguage> getLanguages() {
+        return languages;
     }
 
     public Instant getCreatedAt() {

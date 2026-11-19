@@ -3,7 +3,6 @@ package com.unisal.selectaapi.auth.service;
 import com.unisal.selectaapi.auth.entity.RefreshToken;
 import com.unisal.selectaapi.auth.repository.RefreshTokenRepository;
 import com.unisal.selectaapi.exception.BusinessException;
-import com.unisal.selectaapi.user.UserRepository;
 import com.unisal.selectaapi.user.entity.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

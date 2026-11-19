@@ -97,6 +97,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/refresh-token").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/vagas/**").permitAll()
+                        // Handshake do WebSocket: a autenticação acontece no frame STOMP CONNECT
+                        // (ver StompAuthChannelInterceptor), não aqui.
+                        .requestMatchers("/ws", "/ws/**").permitAll()
                         .anyRequest()
                         .authenticated())
                 .oauth2Login(oauth2 -> oauth2

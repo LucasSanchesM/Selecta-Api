@@ -2,6 +2,7 @@ package com.unisal.selectaapi.candidatura.service;
 
 import com.unisal.selectaapi.mensageria.EmailUpdateType;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.unisal.selectaapi.candidatura.CandidaturaAgendamentoSpecification;
+import com.unisal.selectaapi.candidatura.dto.AgendamentoEmpresaResponse;
 import com.unisal.selectaapi.candidatura.dto.AgendamentoResponse;
 import com.unisal.selectaapi.candidatura.dto.CreateAgendamentoDto;
 import com.unisal.selectaapi.candidatura.entity.Candidatura;
@@ -61,6 +64,21 @@ public class CandidaturaAgendamentoService {
     public List<AgendamentoResponse> listarComoEmpresa(UUID empresaUserId, UUID candidaturaId) {
         candidaturaService.buscarComoEmpresa(empresaUserId, candidaturaId);
         return listar(candidaturaId);
+    }
+
+    /**
+     * Lista todos os agendamentos das vagas da empresa ("Meus agendamentos").
+     * Filtros opcionais: situação, apenas os criados pelo usuário logado e janela de datas [de, ate).
+     */
+    @Transactional(readOnly = true)
+    public List<AgendamentoEmpresaResponse> listarDaEmpresa(UUID empresaId, UUID criadoPorUserId,
+            StatusAgendamento status, Instant de, Instant ate) {
+        var spec = CandidaturaAgendamentoSpecification.daEmpresa(empresaId, criadoPorUserId, status, de, ate);
+
+        return agendamentoRepository.findAll(spec)
+                .stream()
+                .map(mapper::toAgendamentoEmpresaResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)

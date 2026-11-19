@@ -21,7 +21,9 @@ import com.unisal.selectaapi.candidate.dto.CreateProjectDto;
 import com.unisal.selectaapi.candidate.dto.ImageFormat;
 import com.unisal.selectaapi.candidate.dto.UpdateCandidateProfileDto;
 import com.unisal.selectaapi.candidate.dto.ValidateImageContent;
+import com.unisal.selectaapi.candidate.entity.CandidateCertificate;
 import com.unisal.selectaapi.candidate.entity.CandidateExperience;
+import com.unisal.selectaapi.candidate.entity.CandidateLanguage;
 import com.unisal.selectaapi.candidate.entity.CandidateProfile;
 import com.unisal.selectaapi.candidate.entity.CandidateProject;
 import com.unisal.selectaapi.candidate.repository.CandidateExperienceRepository;
@@ -475,6 +477,16 @@ public class CandidateProfileService {
                 proj.getCreatedAt()))
                 .collect(Collectors.toList());
 
+        UUID ownerId = profile.getUser().getId();
+        var certificateDtos = profile.getCertificates().stream()
+                .sorted(java.util.Comparator.comparing(CandidateCertificate::getIssueDate).reversed())
+                .map(certificate -> CredentialMapper.toDto(ownerId, certificate))
+                .collect(Collectors.toList());
+        var languageDtos = profile.getLanguages().stream()
+                .sorted(java.util.Comparator.comparing(CandidateLanguage::getLanguage, String.CASE_INSENSITIVE_ORDER))
+                .map(language -> CredentialMapper.toDto(ownerId, language))
+                .collect(Collectors.toList());
+
         return new CandidateProfileDto(
                 profile.getId(),
                 profile.getUser().getId(),
@@ -497,6 +509,8 @@ public class CandidateProfileService {
                 profile.getSkills(),
                 expDtos,
                 projDtos,
+                certificateDtos,
+                languageDtos,
                 profile.getCreatedAt(),
                 profile.getUpdatedAt());
     }

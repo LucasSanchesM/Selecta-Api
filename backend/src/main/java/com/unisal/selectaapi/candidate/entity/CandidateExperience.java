@@ -37,8 +37,8 @@ public class CandidateExperience {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    private Instant startDate;
-    private Instant endDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
 
     private Boolean isCurrent;
 
@@ -53,8 +53,8 @@ public class CandidateExperience {
             String companyName,
             String role,
             String description,
-            Instant startDate,
-            Instant endDate,
+            LocalDate startDate,
+            LocalDate endDate,
             Boolean isCurrent) {
         this.candidateProfile = candidateProfile;
         this.companyName = companyName;
@@ -113,19 +113,19 @@ public class CandidateExperience {
         this.description = description;
     }
 
-    public Instant getStartDate() {
+    public LocalDate getStartDate() {
         return startDate;
     }
 
-    public void setStartDate(Instant startDate) {
+    public void setStartDate(LocalDate startDate) {
         this.startDate = startDate;
     }
 
-    public Instant getEndDate() {
+    public LocalDate getEndDate() {
         return endDate;
     }
 
-    public void setEndDate(Instant endDate) {
+    public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
     }
 

@@ -81,6 +81,7 @@ public class EmbeddingIndexer {
         String hash = sha256(model + "\n" + text);
 
         Optional<String> currentHash = embeddingRepository.findContentHash(message.target(), message.id());
+        
         if (currentHash.isPresent() && currentHash.get().equals(hash)) {
             embeddingRepository.touch(message.target(), message.id(), source.get().updatedAt());
             return;
